@@ -319,13 +319,13 @@ def generate_config_csv(filename):
 
 
 def main(opts):
-    if "-g" in opts:
+    if "-g" in opts and opts['-g'] is not None:
         generate_config_csv(opts["-g"])
         exit()
     cameras = parse_camera_config_csv(opts["-c"])
     for camera in cameras:
         images = find_image_files(camera)
-        process_camera_images(images)
+        process_camera_images(images, camera)
 
 
 if __name__ == "__main__":
