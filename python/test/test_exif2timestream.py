@@ -309,7 +309,6 @@ class TestExifTraitcapture(unittest.TestCase):
         self._md5test(out_csv, "ded4ce1bb9a5640905f7b17c973da587")
 
     def tearDown(self):
-        print "removing '%s'" % self.out_dirname
         rmtree(self.out_dirname)
 
 
