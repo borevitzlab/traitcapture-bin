@@ -6,6 +6,7 @@ import os
 from os import path
 from PIL import Image
 import shutil
+from sys import exit
 from time import strptime, strftime, mktime, localtime
 
 EXIF_DATE_TAG = "Image DateTime"
@@ -19,6 +20,43 @@ TS_FMT = TS_V1_FMT
 
 TS_NAME_FMT = "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
 
+RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
+
+CLI_OPTS = """
+USAGE:
+    exif2timestream.py [-a ARCHIVE_DIR] -c CAM_CONFIG_CSV
+    exif2timestream.py -g CAM_CONFIG_CSV
+
+OPTIONS:
+    -a ARCHIVE_DIR      Directory to archive processed photos to when action is
+                        "archive".
+    -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
+    -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
+                        path.
+"""
+
+# Map csv fields to camera dict fields. Should be 1 to 1, but is here for
+# compability
+FIELDS = {
+        'archive_dest': 'archive_dest',
+        'destination': 'destination',
+        'expt': 'current_expt',
+        'expt_end': 'expt_end',
+        'expt_start': 'expt_start',
+        'interval': 'interval',
+        'location': 'location',
+        'method': 'method',
+        'mode': 'mode',
+        'name': 'camera_name_f',
+        'resolutions': 'resolutions',
+        'source': 'source',
+        'sunrise': 'sunrise',
+        'sunset': 'sunset',
+        'timezone': 'camera_timezone',
+        'use': 'use',
+        'user': 'user'
+        }
+
 
 def get_file_date(filename, round_secs=1):
     """
@@ -30,7 +68,7 @@ def get_file_date(filename, round_secs=1):
         str_date = exif_tags[EXIF_DATE_TAG].values
         date = strptime(str_date, EXIF_DATE_FMT)
     except KeyError:
-        date = None
+        return None
     if round_secs > 0:
         round_struct_time(date, round_secs)
     return date
@@ -60,7 +98,7 @@ def resize_image(dest_fn, src_fn, x, y, fmt="JPEG", keep_aspect=False,
         im.thumbnail((x, y), Image.ANTIALIAS)
     else:
         if crop:
-            pass
+            raise NotImplementedError("Crop-based resizing not implemented")
         else:
             im = im.resize((x, y), Image.ANTIALIAS)
     im.save(dest_fn, fmt)
@@ -83,17 +121,18 @@ def make_timestream_name(camera, res="fullres", step="orig"):
     "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
     """
     return TS_NAME_FMT.format(
-            expt=camera["current_expt"],
-            loc=camera["location"],
-            cam=camera["name"],
+            expt=camera[FIELDS["expt"]],
+            loc=camera[FIELDS["location"]],
+            cam=camera[FIELDS["name"]],
             res=res,
             step=step
             )
 
 
-def do_image_resizing(image, camera, subsec=0):
+def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
+        crop=False):
     # get a list of resolutions to down-size to, as text
-    resolutions = camera['resolutions'].strip().split('~')
+    resolutions = camera[FIELDS["resolutions"]].strip().split('~')
     in_ext = path.splitext(image)[-1].lstrip(".")
     image_date = get_file_date(image)
     for resolution in resolutions:
@@ -119,11 +158,20 @@ def do_image_resizing(image, camera, subsec=0):
             resized_image = get_new_file_name(image_date, resized_name,
                     n=subsec, ext=in_ext)
             resized_image = path.join(
-                camera['destination'],
+                camera[FIELDS["destination"]],
                 resized_name,
                 resized_image
                 )
-            resize_image(resized_image, image, x, y)
+
+            out_dir = path.dirname(resized_image)
+            if not path.exists(out_dir):
+                # makedirs is like `mkdir -p`, creates parents, but raises
+                # os.error if target already exits
+                os.makedirs(out_dir)
+                #TODO: implement try/except. for now, just let the error crash it
+
+            resize_image(resized_image, image, x, y, keep_aspect=keep_aspect,
+                    crop=crop)
             #TODO
         else:
             # something's screwy. raise an error
@@ -132,7 +180,7 @@ def do_image_resizing(image, camera, subsec=0):
         if bad_res:
             raise ValueError(
                     "Camera {cam:s}: bad resolution of'{res:s}'".format(
-                        cam=camera["name"], res=camera['resolutions'])
+                        cam=camera[FIELDS["name"]], res=camera[FIELDS["resolutions"]])
                     )
 
 
@@ -140,7 +188,7 @@ def timestreamise_image(image, camera, subsec=0):
     # make new image path
     image_date = get_file_date(image)
     in_ext = path.splitext(image)[-1].lstrip(".")
-    ts_name = make_timestream_name(camera, res=resolution)
+    ts_name = make_timestream_name(camera, res="fullres")
     out_image = get_new_file_name(
         image_date,
         ts_name,
@@ -148,7 +196,7 @@ def timestreamise_image(image, camera, subsec=0):
         ext=in_ext
         )
     out_image = path.join(
-        camera['destination'],
+        camera[FIELDS["destination"]],
         ts_name,
         out_image
         )
@@ -156,24 +204,17 @@ def timestreamise_image(image, camera, subsec=0):
     # make the target directory
     out_dir = path.dirname(out_image)
     if not path.exists(out_dir):
-        try:
-            # makedirs is like `mkdir -p`, creates parents, but raises
-            # os.error if target already exits
-            os.makedirs(out_dir)
-        except os.error as orig_err:
-            # so we catch the error, check if it exists, and re-raise
-            # it if it doesn't, in case of weird filesystem shit
-            # happening. should never error due to existing though, as
-            # we've already check it above.
-            if not path.exists(out_dir):
-                raise orig_err
+        # makedirs is like `mkdir -p`, creates parents, but raises
+        # os.error if target already exits
+        os.makedirs(out_dir)
+        #TODO: implement try/except. for now, just let the error crash it
 
     #try:
     shutil.copy(image, out_image)
     #except Exception as e:
     #TODO: implment proper try/except. for now, just let the error crash it
 
-    if camera["method"] == "move":
+    if camera[FIELDS["method"]] == "move":
         os.unlink(image)
 
 
@@ -199,27 +240,82 @@ def process_camera_images(images, camera):
         timestreamise_image(image, camera, subsec=subsec)
 
 
-def parse_exif_timestream_csv(filename):
+def get_local_path(this_path):
+    return this_path.replace("/", path.sep).replace("\\", path.sep)
+
+def localise_cam_config(camera):
+    camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
+    camera[FIELDS["destination"]] =  get_local_path(camera[FIELDS["destination"]])
+    return camera
+
+def parse_camera_config_csv(filename):
     fh = open(filename)
     cam_config = DictReader(fh)
     to_move = {}
 
+    # check header
+    header = set(cam_config.fieldnames)
+    expct_header = set(FIELDS.values())
+    for item in header:
+        if item not in expct_header:
+            raise ValueError("Bad config CSV: Extraneous field '{0}'".format(item))
+    for item in expct_header:
+        if item not in header:
+            raise ValueError("Bad config CSV: Missing field '{0}'".format(item))
+
     for camera in cam_config:
+        camera = localise_cam_config(camera)
+        #TODO: do a check that all values of FIELDS exist and have valid values
+        # in this camera
+
         cam_to_move = {}
         # work out if we should skip this cam
         try:
             # csv parser gives a string, which may or may not have some
             # whitespace padding around it, which strip() removes
             # it's normally 1 or 0 for T and F, which bool() likes
-            use = bool(int(camera["use"].strip()))
+            use = bool(int(camera[FIELDS["use"]].strip()))
         except ValueError:
             # if it isn't 1 or 0 (or any other int meaning true), then check if
             # it is any of the yes/true combiations below (case insensitive)
-            use = camera["use"].strip().lower() in ["t", "true", "y", "yes"]
-        if not use:
-            continue
+            use = camera[FIELDS["use"]].strip().lower() in ["t", "true", "y", "yes"]
+        if use:
+            yield camera
 
-        in_dir = camera['source'].strip()
-        images = find_image_files(in_dir)
+def find_image_files(camera, ext="jpg"):
+    ext = ext.strip().strip(".")
+    if ext.lower() in RAW_FORMATS:
+        ext_dir = "raw"
+    else:
+        ext_dir = ext
+    src = path.join(camera[FIELDS["source"]], ext_dir)
+    walk = os.walk(src, topdown=True)
+    for cur_dir, dirs, files in walk:
+        if len(dirs) > 0:
+            raise ValueError("too many subdirs")
+        for fle in files:
+            this_ext = path.splitext(fle)[-1].lower().strip(".")
+            if this_ext == ext:
+                fle_path = path.join(cur_dir, fle)
+                yield fle_path
 
+
+def generate_config_csv(filename):
+    with open(filename, "w") as fh:
+        fh.write(",".join([x for x in sorted(FIELDS.values())]))
+        fh.write("\n")
+
+
+def main(opts):
+    if "-g" in opts:
+        generate_config_csv(opts["-g"])
+        exit()
+    cameras = parse_camera_config_csv(opts["-c"])
+    for camera in cameras:
+        images = find_image_files(camera)
         process_camera_images(images)
+
+
+if __name__ == "__main__":
+    opts = docopt(CLI_OPTS)
+    main(opts)
