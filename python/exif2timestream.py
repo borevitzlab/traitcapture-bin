@@ -214,9 +214,6 @@ def timestreamise_image(image, camera, subsec=0):
     #except Exception as e:
     #TODO: implment proper try/except. for now, just let the error crash it
 
-    if camera[FIELDS["method"]] == "move":
-        os.unlink(image)
-
 
 def process_camera_images(images, camera):
     """
@@ -226,6 +223,16 @@ def process_camera_images(images, camera):
     last_date = None
     subsec = 0
     for image in images:
+        # archive a backup before we fuck anything up
+        if camera[FIELDS["method"]] == "archive":
+            archive_image = path.join(
+                    camera[FIELDS["archive_dest"]],
+                    path.basename(image)
+                    )
+            if not path.exists(camera[FIELDS["archive_dest"]]):
+                os.makedirs(camera[FIELDS["archive_dest"]])
+            shutil.copy2(image, archive_image)
+
         image_date = get_file_date(image)
         if last_date == image_date:
             # increment the sub-second counter
@@ -238,6 +245,11 @@ def process_camera_images(images, camera):
         do_image_resizing(image, camera)
         # deal with original image (move/copy etc)
         timestreamise_image(image, camera, subsec=subsec)
+
+        if camera[FIELDS["method"]] in {"move", "archive"}:
+            # images have already been archived above, so just delete originals
+            os.unlink(image)
+
 
 
 def get_local_path(this_path):
