@@ -178,13 +178,13 @@ class TestExifTraitcapture(unittest.TestCase):
 
     # tests for find_image_files
     def test_find_image_files_jpg(self):
-        expt = [path.join(self.camupload_dir, x) for x in [
+        expt = {path.join(self.camupload_dir, x) for x in [
                         'jpg/IMG_0001.JPG',
                         'jpg/IMG_0630.JPG',
                         'jpg/IMG_0633.JPG']
-                    ]
+                    }
         got = e2t.find_image_files(self.camera)
-        self.assertListEqual(list(got), expt)
+        self.assertSetEqual(set(got), expt)
 
     def test_find_image_files_raw(self):
         expt = [path.join(self.camupload_dir, x) for x in [
