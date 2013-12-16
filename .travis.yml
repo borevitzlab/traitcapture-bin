@@ -14,8 +14,10 @@ before_install:
 
 before_script:
  - cd python
- - ./python/install
+ - ./install
+ - cd ..
 
 script:
  - cd python
- - ./python/run_tests
+ - ./run_tests
+ - cd ..
