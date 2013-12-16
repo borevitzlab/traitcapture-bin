@@ -13,7 +13,7 @@ before_install:
  - pip install git+https://github.com/python-imaging/Pillow.git
 
 before_script:
- - for d in python; do pushd $d; ./install; popd; done
+ - ./python/install
 
 script:
- - for d in python; do pushd $d; ./run_tests; popd; done
+ - ./python/run_tests
