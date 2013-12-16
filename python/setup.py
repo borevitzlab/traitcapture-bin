@@ -7,7 +7,7 @@ traitcapture-bin:
 
 install_requires = [
         "ExifRead==1.4.2",
-        "Pillow>=2.2.0",
+        "Pillow==2.3.0",
         "docopt==0.6.1",
         "filemagic==1.6",
         "imageio==0.4.1",
