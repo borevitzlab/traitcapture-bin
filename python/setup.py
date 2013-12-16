@@ -11,6 +11,7 @@ install_requires = [
         "docopt==0.6.1",
         "filemagic==1.6",
         "imageio==0.4.1",
+        "voluptuous==0.8.4",
         ]
 
 test_requires = [
