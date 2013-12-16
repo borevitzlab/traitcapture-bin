@@ -1,3 +1,4 @@
 #!/bin/bash
 
-nosetests -v --with-coverage --cover-package exif2timestream
+nosetests $@ --with-coverage --cover-package exif2timestream
+exit $?
