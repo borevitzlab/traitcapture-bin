@@ -1,0 +1,3 @@
+#!/bin/bash
+
+nosetests -v --with-coverage --cover-package exif2timestream
