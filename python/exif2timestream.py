@@ -7,7 +7,8 @@ from os import path
 from PIL import Image
 import shutil
 from sys import exit
-from time import strptime, strftime, mktime, localtime
+from time import strptime, strftime, mktime, localtime, struct_time
+from voluptuous import Required, Schema
 
 EXIF_DATE_TAG = "Image DateTime"
 EXIF_DATE_FMT = "%Y:%m:%d %H:%M:%S"
@@ -19,6 +20,9 @@ TS_V2_FMT = ("%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/"
 TS_FMT = TS_V1_FMT
 
 TS_NAME_FMT = "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
+
+FULLRES_CONSTANTS = {"original", "orig", "fullres"}
+IMAGE_TYPE_CONSTANTS = {"raw", "jpg"}
 
 RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
 
@@ -35,6 +39,9 @@ OPTIONS:
                         path.
 """
 
+class SkipImage(Exception):
+    pass
+
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
 # compability
 FIELDS = {
@@ -43,6 +50,7 @@ FIELDS = {
         'expt': 'current_expt',
         'expt_end': 'expt_end',
         'expt_start': 'expt_start',
+        'image_types': 'image_types',
         'interval': 'interval',
         'location': 'location',
         'method': 'method',
@@ -56,6 +64,113 @@ FIELDS = {
         'use': 'use',
         'user': 'user'
         }
+
+
+def validate_camera(camera):
+    def date(x):
+        if isinstance(x, struct_time):
+            return x
+        else:
+            try:
+               return strptime(x, "%Y_%m_%d")
+            except:
+                raise ValueError
+
+    num_str = lambda x: int(x)
+
+    def bool_str(x):
+        if isinstance(x, bool):
+            return x
+        elif isinstance(x, int):
+            return bool(int(x))
+        elif isinstance(x, str):
+            x = x.strip().lower()
+            try:
+                return bool(int(x))
+            except:
+                if x in {"t", "true", "y", "yes", "f", "false", "n", "no"}:
+                    return x in {"t", "true", "y", "yes"}
+        raise ValueError
+
+    def int_time_hr_min(x):
+        if isinstance(x, tuple):
+            return x
+        else:
+            return (int(x)//100, int(x) % 100 )
+    def path_exists(x):
+        if path.exists(x):
+            return x
+        else:
+            raise ValueError("path '%s' doesn't exist" % x)
+
+    def resolution_str(x):
+        if not isinstance(x, str):
+            raise ValueError
+        xs = x.strip().split('~')
+        res_list = []
+        for res in xs:
+            # First, attempt splitting into X and Y components. Non <X>x<Y>
+            # resolutions will be returned as a single item in a list,
+            # hence the len(xy) below
+            xy = res.strip().lower().split("x")
+            if res in FULLRES_CONSTANTS:
+                res_list.append(res)
+            elif len(xy) == 2:
+                # it's an XxY thing, hopefully
+                x, y = xy
+                x, y = int(x), int(y)
+                res_list.append((x,y))
+            else:
+                # we'll pretend it's an int, for X resolution, and any ValueError
+                # triggered here will be propagated to the vaildator
+                res_list.append((int(res), None))
+        return res_list
+
+    def image_type_str(x):
+        if isinstance(x, list):
+            return x
+        if not isinstance(x, str):
+            raise ValueError
+        types = x.lower().strip().split('~')
+        for type in types:
+            if not type in IMAGE_TYPE_CONSTANTS:
+                raise ValueError
+        return types
+
+    class InList(object):
+        def __init__(self, valid_values):
+            if isinstance(valid_values, list) or \
+                    isinstance(valid_values, tuple):
+                self.valid_values = set(valid_values)
+        def __call__(self, x):
+            if not x in self.valid_values:
+                raise ValueError
+            return x
+
+    sch = Schema({
+        Required(FIELDS["destination"]): path_exists,
+        Required(FIELDS["expt"]): str,
+        Required(FIELDS["expt_end"]): date,
+        Required(FIELDS["expt_start"]): date,
+        Required(FIELDS["image_types"]): image_type_str,
+        Required(FIELDS["interval"], default=1): num_str,
+        Required(FIELDS["location"]): str,
+        Required(FIELDS["method"], default="archive"): InList(["copy", "archive",
+            "move"]),
+        Required(FIELDS["mode"], default="batch"): InList(["batch", "watch"]),
+        # watch not implemented yet though
+        Required(FIELDS["name"]): str,
+        Required(FIELDS["resolutions"], default="fullres"): resolution_str,
+        Required(FIELDS["source"]): path_exists,
+        Required(FIELDS["use"]): bool_str,
+        Required(FIELDS["user"]): str,
+        FIELDS["archive_dest"]: path_exists,
+        FIELDS["sunrise"]: int_time_hr_min,
+        FIELDS["sunset"]: int_time_hr_min,
+        FIELDS["timezone"]: int_time_hr_min,
+        })
+    cam = sch(camera)
+    return cam
 
 
 def get_file_date(filename, round_secs=1):
@@ -120,6 +235,8 @@ def make_timestream_name(camera, res="fullres", step="orig"):
     """
     "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
     """
+    if isinstance(res, tuple):
+        res = "x".join([str(x) for x in res])
     return TS_NAME_FMT.format(
             expt=camera[FIELDS["expt"]],
             loc=camera[FIELDS["location"]],
@@ -131,57 +248,38 @@ def make_timestream_name(camera, res="fullres", step="orig"):
 
 def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
         crop=False):
-    # get a list of resolutions to down-size to, as text
-    resolutions = camera[FIELDS["resolutions"]].strip().split('~')
+    resolutions = camera[FIELDS["resolutions"]]
+
+    if len(resolutions) == 1 and resolutions[0] in FULLRES_CONSTANTS:
+        # there's no down-sizing to do, so get out now.
+        print "no downsizing"
+        return
+
     in_ext = path.splitext(image)[-1].lstrip(".")
-    image_date = get_file_date(image)
+    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
     for resolution in resolutions:
-        bad_res = False
-        # attempt splitting into X and Y components. non <X>x<Y>
-        # resolutions will be returned as a single item in a list, hence
-        # the len(xy) below
-        xy = resolution.lower().strip().split("x")
-        if resolution.strip().lower() in {"original", "orig", "fullres"}:
-            # the fullres image is done below. so we skip the copy/move bit
-            # for now, ensuring we can be lazy about specifiying the source
-            # of resized images
-            pass
-        elif len(xy) == 2:
-            # it's an NxN size spec, so resize
-            x, y = xy
-            try:
-                x = int(x)
-                y = int(y)
-            except ValueError:
-                bad_res = True
-            resized_name = make_timestream_name(camera, res=resolution)
-            resized_image = get_new_file_name(image_date, resized_name,
-                    n=subsec, ext=in_ext)
-            resized_image = path.join(
-                camera[FIELDS["destination"]],
-                resized_name,
-                resized_image
-                )
+        if isinstance(resolution, str):
+            # fullres
+            continue
+        x, y = resolution
+        resized_name = make_timestream_name(camera, res=resolution)
+        resized_image = get_new_file_name(image_date, resized_name,
+                n=subsec, ext=in_ext)
+        resized_image = path.join(
+            camera[FIELDS["destination"]],
+            resized_name,
+            resized_image
+            )
 
-            out_dir = path.dirname(resized_image)
-            if not path.exists(out_dir):
-                # makedirs is like `mkdir -p`, creates parents, but raises
-                # os.error if target already exits
-                os.makedirs(out_dir)
-                #TODO: implement try/except. for now, just let the error crash it
+        out_dir = path.dirname(resized_image)
+        if not path.exists(out_dir):
+            # makedirs is like `mkdir -p`, creates parents, but raises
+            # os.error if target already exits
+            os.makedirs(out_dir)
+            #TODO: implement try/except. for now, just let the error crash it
 
-            resize_image(resized_image, image, x, y, keep_aspect=keep_aspect,
-                    crop=crop)
-            #TODO
-        else:
-            # something's screwy. raise an error
-            bad_res = True
-
-        if bad_res:
-            raise ValueError(
-                    "Camera {cam:s}: bad resolution of'{res:s}'".format(
-                        cam=camera[FIELDS["name"]], res=camera[FIELDS["resolutions"]])
-                    )
+        resize_image(resized_image, image, x, y, keep_aspect=keep_aspect,
+                crop=crop)
 
 
 def timestreamise_image(image, camera, subsec=0):
@@ -212,10 +310,10 @@ def timestreamise_image(image, camera, subsec=0):
     #try:
     shutil.copy(image, out_image)
     #except Exception as e:
-    #TODO: implment proper try/except. for now, just let the error crash it
+    #TODO: implement proper try/except. for now, just let the error crash it
 
 
-def process_camera_images(images, camera):
+def process_camera_images(images, camera, ext="jpg"):
     """
     Given a camera config and list of images, will do the required
     move/copy/resize operations.
@@ -234,6 +332,8 @@ def process_camera_images(images, camera):
             shutil.copy2(image, archive_image)
 
         image_date = get_file_date(image)
+
+        #TODO: BUG: this won't work if images aren't in chronological order
         if last_date == image_date:
             # increment the sub-second counter
             subsec += 1
@@ -241,75 +341,67 @@ def process_camera_images(images, camera):
             # we've moved to the next time, so 0-based subsec counter == 0
             subsec = 0
 
-        # do the resizing of images
-        do_image_resizing(image, camera)
-        # deal with original image (move/copy etc)
-        timestreamise_image(image, camera, subsec=subsec)
+        try:
+            # deal with original image (move/copy etc)
+            timestreamise_image(image, camera, subsec=subsec)
+            if not ext == "raw":
+                # do the resizing of images
+                do_image_resizing(image, camera)
+        except SkipImage:
+            continue
 
         if camera[FIELDS["method"]] in {"move", "archive"}:
             # images have already been archived above, so just delete originals
             os.unlink(image)
 
 
-
 def get_local_path(this_path):
     return this_path.replace("/", path.sep).replace("\\", path.sep)
 
+
 def localise_cam_config(camera):
+    print camera
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
     camera[FIELDS["destination"]] =  get_local_path(camera[FIELDS["destination"]])
+    print camera
     return camera
+
 
 def parse_camera_config_csv(filename):
     fh = open(filename)
     cam_config = DictReader(fh)
-    to_move = {}
-
-    # check header
-    header = set(cam_config.fieldnames)
-    expct_header = set(FIELDS.values())
-    for item in header:
-        if item not in expct_header:
-            raise ValueError("Bad config CSV: Extraneous field '{0}'".format(item))
-    for item in expct_header:
-        if item not in header:
-            raise ValueError("Bad config CSV: Missing field '{0}'".format(item))
 
     for camera in cam_config:
         camera = localise_cam_config(camera)
-        #TODO: do a check that all values of FIELDS exist and have valid values
-        # in this camera
+        camera = validate_camera(camera)
 
-        cam_to_move = {}
-        # work out if we should skip this cam
-        try:
-            # csv parser gives a string, which may or may not have some
-            # whitespace padding around it, which strip() removes
-            # it's normally 1 or 0 for T and F, which bool() likes
-            use = bool(int(camera[FIELDS["use"]].strip()))
-        except ValueError:
-            # if it isn't 1 or 0 (or any other int meaning true), then check if
-            # it is any of the yes/true combiations below (case insensitive)
-            use = camera[FIELDS["use"]].strip().lower() in ["t", "true", "y", "yes"]
-        if use:
+        if camera[FIELDS["use"]]:
             yield camera
 
-def find_image_files(camera, ext="jpg"):
-    ext = ext.strip().strip(".")
-    if ext.lower() in RAW_FORMATS:
-        ext_dir = "raw"
-    else:
-        ext_dir = ext
-    src = path.join(camera[FIELDS["source"]], ext_dir)
-    walk = os.walk(src, topdown=True)
-    for cur_dir, dirs, files in walk:
-        if len(dirs) > 0:
-            raise ValueError("too many subdirs")
-        for fle in files:
-            this_ext = path.splitext(fle)[-1].lower().strip(".")
-            if this_ext == ext:
-                fle_path = path.join(cur_dir, fle)
-                yield fle_path
+def find_image_files(camera):
+    exts = camera[FIELDS["image_types"]]
+    ext_files = {}
+    for ext in exts:
+        if ext.lower() in RAW_FORMATS:
+            ext_dir = "raw"
+        else:
+            ext_dir = ext
+        src = path.join(camera[FIELDS["source"]], ext_dir)
+        walk = os.walk(src, topdown=True)
+        for cur_dir, dirs, files in walk:
+            if len(dirs) > 0:
+                raise ValueError("too many subdirs")
+            for fle in files:
+                this_ext = path.splitext(fle)[-1].lower().strip(".")
+                if this_ext == ext:
+                    fle_path = path.join(cur_dir, fle)
+                    try:
+                        ext_files[ext].append(fle_path)
+                    except KeyError:
+                        ext_files[ext] = []
+                        ext_files[ext].append(fle_path)
+    return ext_files
+
 
 
 def generate_config_csv(filename):
@@ -324,8 +416,8 @@ def main(opts):
         exit()
     cameras = parse_camera_config_csv(opts["-c"])
     for camera in cameras:
-        images = find_image_files(camera)
-        process_camera_images(images, camera)
+        for ext, images in find_image_files(camera):
+            process_camera_images(images, camera,)
 
 
 if __name__ == "__main__":

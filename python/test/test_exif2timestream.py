@@ -5,7 +5,10 @@ import os
 from os import path
 from shutil import rmtree
 import time
+from time import strptime
 import unittest
+from voluptuous import MultipleInvalid
+
 
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
@@ -18,38 +21,42 @@ class TestExifTraitcapture(unittest.TestCase):
     jpg_testfile = path.join(camupload_dir, "jpg", "IMG_0001.JPG")
     raw_testfile = path.join(camupload_dir, "raw", "IMG_0001.CR2")
     camera_win32 = {
+            'archive_dest': '/'.join([out_dirname, 'archive']),
             'current_expt': 'BVZ00000',
             'destination': '\\'.join([out_dirname, 'timestreams']),
             'expt_end': '2013_12_31',
             'expt_start': '2013_11_01',
             'location': 'EUC-R01C01',
             'method': 'copy',
-            'minutes': '5',
+            'image_types': 'raw~jpg',
+            'interval': '5',
             'mode': 'batch',
             'camera_name_f': 'IP01-RGB',
             'resolutions': 'original~1024x768~640x480',
             'source': '\\'.join([dirname, "img", "camupload"]),
             'sunrise': '500',
             'sunset': '2200',
-            'timezone': '11',
+            'camera_timezone': '1100',
             'use': '1',
             'user': 'Glasshouses'
             }
     camera_unix = {
+            'archive_dest': '/'.join([out_dirname, 'archive']),
             'current_expt': 'BVZ00000',
             'destination': '/'.join([out_dirname, 'timestreams']),
             'expt_end': '2013_12_31',
             'expt_start': '2013_11_01',
             'location': 'EUC-R01C01',
             'method': 'copy',
-            'minutes': '5',
+            'interval': '5',
+            'image_types': 'raw~jpg',
             'mode': 'batch',
             'camera_name_f': 'IP01-RGB',
             'resolutions': 'original~1024x768~640x480',
             'source': '/'.join([dirname, "img", "camupload"]),
             'sunrise': '500',
             'sunset': '2200',
-            'timezone': '11',
+            'camera_timezone': '1100',
             'use': '1',
             'user': 'Glasshouses'
             }
@@ -73,6 +80,8 @@ class TestExifTraitcapture(unittest.TestCase):
         'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig_2013_11_12_20_53_09_00.JPG'
         )
 
+    maxDiff = None
+
     # helpers
     def _md5test(self, filename, expected_hash):
         with open(filename, "rb") as fh:
@@ -84,17 +93,28 @@ class TestExifTraitcapture(unittest.TestCase):
 
     # setup
     def setUp(self):
-        os.mkdir(self.out_dirname)
-        self.camera = e2t.localise_cam_config(self.camera_unix)
+        if path.sep == "/":
+            self.camera_raw = deepcopy(self.camera_unix)
+            self.camera = deepcopy(self.camera_unix)
+        else:
+            self.camera_raw = deepcopy(self.camera_win32)
+            self.camera = deepcopy(self.camera_win32)
+        if not path.exists(self.out_dirname):
+            os.mkdir(self.out_dirname)
+        if not path.exists(self.camera[e2t.FIELDS['destination']]):
+            os.mkdir(self.camera[e2t.FIELDS['destination']])
+        if not path.exists(self.camera[e2t.FIELDS['archive_dest']]):
+            os.mkdir(self.camera[e2t.FIELDS['archive_dest']])
+        self.camera = e2t.validate_camera(self.camera)
 
     # test for localise_cam_config
     def test_localise_cam_config(self):
         self.assertDictEqual(
                 e2t.localise_cam_config(self.camera_win32),
-                self.camera)
+                self.camera_raw)
         self.assertDictEqual(
                 e2t.localise_cam_config(self.camera_unix),
-                self.camera)
+                self.camera_raw)
 
     # tests for round_struct_time
     def test_round_struct_time_gmt(self):
@@ -177,26 +197,17 @@ class TestExifTraitcapture(unittest.TestCase):
         self.assertEqual(name, exp)
 
     # tests for find_image_files
-    def test_find_image_files_jpg(self):
-        expt = {path.join(self.camupload_dir, x) for x in [
+    def test_find_image_files(self):
+        expt = {"jpg": {path.join(self.camupload_dir, x) for x in [
                         'jpg/IMG_0001.JPG',
                         'jpg/IMG_0630.JPG',
                         'jpg/IMG_0633.JPG']
-                    }
+                        },
+                "raw": {path.join(self.camupload_dir, 'raw/IMG_0001.CR2')},
+            }
         got = e2t.find_image_files(self.camera)
-        self.assertSetEqual(set(got), expt)
-
-    def test_find_image_files_raw(self):
-        expt = [path.join(self.camupload_dir, x) for x in [
-                        'raw/IMG_0001.CR2',]
-                    ]
-        got = e2t.find_image_files(self.camera, ext="cr2")
-        self.assertListEqual(list(got), expt)
-
-    def test_find_image_files_bad(self):
-        expt = []
-        got = e2t.find_image_files(self.camera, ext="badfmt")
-        self.assertListEqual(list(got), expt)
+        self.assertSetEqual(set(got["jpg"]), expt["jpg"])
+        self.assertSetEqual(set(got["jpg"]), expt["jpg"])
 
     def test_get_local_path(self):
         winpath = "test\\path\\to\\file"
@@ -220,18 +231,6 @@ class TestExifTraitcapture(unittest.TestCase):
         self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
         self.assertTrue(path.exists(self.r_640_path))
         self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
-
-    def test_do_image_resizing_badcam(self):
-        # test a 'resoultions' in the wrong format
-        badcam = deepcopy(self.camera)
-        badcam[e2t.FIELDS["resolutions"]] = "test"
-        with self.assertRaises(ValueError):
-            e2t.do_image_resizing(self.jpg_testfile, badcam, keep_aspect=True)
-        # test a 'resolutions' with non-number bits
-        badcam = deepcopy(self.camera)
-        badcam[e2t.FIELDS["resolutions"]] = "original~testxnum"
-        with self.assertRaises(ValueError):
-            e2t.do_image_resizing(self.jpg_testfile, badcam, keep_aspect=True)
 
     def test_do_image_resizing_params(self):
         # with keep-aspect = T
@@ -272,20 +271,21 @@ class TestExifTraitcapture(unittest.TestCase):
                 {
                     'archive_dest': './test/out/archive',
                     'camera_name_f': 'RGB',
-                    'camera_timezone': '11',
+                    'camera_timezone': (11,0),
                     'current_expt': 'BVZ00000',
-                    'destination': 'E:/a_data/timestreams',
-                    'expt_end': '2013_12_31',
-                    'expt_start': '2013_12_01',
-                    'interval': '5',
+                    'destination': './test/out/timestreams',
+                    'expt_end': strptime('2013_12_31', "%Y_%m_%d"),
+                    'expt_start': strptime('2013_12_01', "%Y_%m_%d"),
+                    'interval': 5,
+                    'image_types': ["jpg"],
                     'location': 'EUC-R01C01',
                     'method': 'move',
                     'mode': 'batch',
-                    'resolutions': 'original~1024x768~640x480',
-                    'source': 'E:/a_data/camupload/Glasshouses/Eucalyptus/Room01',
-                    'sunrise': '500',
-                    'sunset': '2200',
-                    'use': '1',
+                    'resolutions': ['original', (1024,768), (640,480)],
+                    'source': './test/img/camupload',
+                    'sunrise': (5,0),
+                    'sunset': (22,0),
+                    'use': True,
                     'user': 'Glasshouses'
                 }
             ]
@@ -294,21 +294,19 @@ class TestExifTraitcapture(unittest.TestCase):
             self.assertDictEqual(got, expt)
 
     def test_parse_camera_config_csv_badconfig(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             list(e2t.parse_camera_config_csv(self.bad_header_config_csv))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(MultipleInvalid):
             list(e2t.parse_camera_config_csv(self.bad_values_config_csv))
-            # proper error checking not implemented yet, so we just raise a
-            # ValueError now to make this bit parse
-            #raise ValueError
 
     # tests for generate_config_csv
     def test_generate_config_csv(self):
         out_csv = path.join(self.out_dirname, "test_gencnf.csv")
         e2t.generate_config_csv(out_csv)
-        self._md5test(out_csv, "ded4ce1bb9a5640905f7b17c973da587")
+        self._md5test(out_csv, "de1cd9eb7d630c38bf1ece0237004b1b")
 
     def tearDown(self):
+        #pass
         rmtree(self.out_dirname)
 
 
