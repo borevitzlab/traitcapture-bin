@@ -13,7 +13,9 @@ before_install:
  - pip install git+https://github.com/python-imaging/Pillow.git
 
 before_script:
+ - cd python
  - ./python/install
 
 script:
+ - cd python
  - ./python/run_tests
