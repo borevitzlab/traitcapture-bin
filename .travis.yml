@@ -16,4 +16,4 @@ before_script:
  - for d in python; do pushd $d; ./install; popd; done
 
 script:
- - for d in python; do pushd $d; ./run-tests; popd; done
+ - for d in python; do pushd $d; ./run_tests; popd; done
