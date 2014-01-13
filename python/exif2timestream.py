@@ -184,8 +184,8 @@ def get_file_date(filename, round_secs=1):
         date = strptime(str_date, EXIF_DATE_FMT)
     except KeyError:
         return None
-    if round_secs > 0:
-        round_struct_time(date, round_secs)
+    if round_secs > 1:
+        date = round_struct_time(date, round_secs)
     return date
 
 
@@ -222,13 +222,20 @@ def resize_image(dest_fn, src_fn, x, y, fmt="JPEG", keep_aspect=False,
 
 def round_struct_time(in_time, round_secs, tz_hrs=0, uselocal=True):
     """
-    Round a struct_time object to any time lapse in seconds
+    Round a struct_time object to any time interval in seconds
     """
     seconds = mktime(in_time)
     rounded = int(round(seconds / float(round_secs)) * round_secs)
     if not uselocal:
         rounded -= tz_hrs * 60 * 60 # remove tz seconds, back to UTC
-    return localtime(rounded)
+    retval = localtime(rounded)
+    # This is hacky as fuck. We need to replace stuff from time module with
+    # stuff from datetime, which actually fucking works.
+    rv_list = list(retval)
+    rv_list[8] = in_time.tm_isdst
+    rv_list[6] = in_time.tm_wday
+    retval = struct_time(tuple(rv_list))
+    return retval
 
 
 def make_timestream_name(camera, res="fullres", step="orig"):
@@ -237,6 +244,7 @@ def make_timestream_name(camera, res="fullres", step="orig"):
     """
     if isinstance(res, tuple):
         res = "x".join([str(x) for x in res])
+    # raise ValueError(str((camera, res, step)))
     return TS_NAME_FMT.format(
             expt=camera[FIELDS["expt"]],
             loc=camera[FIELDS["location"]],
@@ -284,7 +292,7 @@ def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
 
 def timestreamise_image(image, camera, subsec=0):
     # make new image path
-    image_date = get_file_date(image)
+    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
     in_ext = path.splitext(image)[-1].lstrip(".")
     ts_name = make_timestream_name(camera, res="fullres")
     out_image = get_new_file_name(
@@ -331,7 +339,7 @@ def process_camera_images(images, camera, ext="jpg"):
                 os.makedirs(camera[FIELDS["archive_dest"]])
             shutil.copy2(image, archive_image)
 
-        image_date = get_file_date(image)
+        image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
 
         #TODO: BUG: this won't work if images aren't in chronological order
         if last_date == image_date:
@@ -360,10 +368,8 @@ def get_local_path(this_path):
 
 
 def localise_cam_config(camera):
-    print camera
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
-    camera[FIELDS["destination"]] =  get_local_path(camera[FIELDS["destination"]])
-    print camera
+    camera[FIELDS["destination"]] = get_local_path(camera[FIELDS["destination"]])
     return camera
 
 
@@ -416,8 +422,8 @@ def main(opts):
         exit()
     cameras = parse_camera_config_csv(opts["-c"])
     for camera in cameras:
-        for ext, images in find_image_files(camera):
-            process_camera_images(images, camera,)
+        for ext, images in find_image_files(camera).iteritems():
+            process_camera_images(images, camera, ext)
 
 
 if __name__ == "__main__":
