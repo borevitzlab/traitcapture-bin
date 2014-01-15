@@ -98,13 +98,15 @@ class TestExifTraitcapture(unittest.TestCase):
         else:
             self.camera_raw = deepcopy(self.camera_win32)
             self.camera = deepcopy(self.camera_win32)
+        img_dir = path.dirname(self.camera[e2t.FIELDS['source']])
+        if not path.exists(img_dir):
+            os.mkdir(img_dir)
         if not path.exists(self.out_dirname):
             os.mkdir(self.out_dirname)
         if not path.exists(self.camera[e2t.FIELDS['destination']]):
             os.mkdir(self.camera[e2t.FIELDS['destination']])
         if not path.exists(self.camera[e2t.FIELDS['archive_dest']]):
             os.mkdir(self.camera[e2t.FIELDS['archive_dest']])
-        img_dir = path.dirname(self.camera[e2t.FIELDS['source']])
         rmtree(img_dir)
         copytree("./test/unburnable", img_dir)
         self.camera = e2t.validate_camera(self.camera)
