@@ -3,12 +3,11 @@ import exif2timestream as e2t
 from hashlib import md5
 import os
 from os import path
-from shutil import rmtree
+from shutil import rmtree, copytree
 import time
 from time import strptime
 import unittest
 from voluptuous import MultipleInvalid
-
 
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
@@ -65,19 +64,19 @@ class TestExifTraitcapture(unittest.TestCase):
         out_dirname, "timestreams",
         'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig_2013_11_12_20_53_09_00.JPG'
+        'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig_2013_11_12_20_55_00_00.JPG'
         )
     r_1080_path =  path.join(
         out_dirname, "timestreams",
         'BVZ00000-EUC-R01C01-IP01-RGB~1024x768-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~1024x768-orig_2013_11_12_20_53_09_00.JPG',
+        'BVZ00000-EUC-R01C01-IP01-RGB~1024x768-orig_2013_11_12_20_55_00_00.JPG',
         )
     r_640_path =  path.join(
         out_dirname, "timestreams",
         'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig_2013_11_12_20_53_09_00.JPG'
+        'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig_2013_11_12_20_55_00_00.JPG'
         )
 
     maxDiff = None
@@ -105,6 +104,9 @@ class TestExifTraitcapture(unittest.TestCase):
             os.mkdir(self.camera[e2t.FIELDS['destination']])
         if not path.exists(self.camera[e2t.FIELDS['archive_dest']]):
             os.mkdir(self.camera[e2t.FIELDS['archive_dest']])
+        img_dir = path.dirname(self.camera[e2t.FIELDS['source']])
+        rmtree(img_dir)
+        copytree("./test/unburnable", img_dir)
         self.camera = e2t.validate_camera(self.camera)
 
     # test for localise_cam_config
@@ -170,6 +172,16 @@ class TestExifTraitcapture(unittest.TestCase):
         fn = e2t.get_new_file_name(date, 'test')
         self.assertEqual(fn, ("2013/2013_11/2013_11_12/2013_11_12_20/"
                               "test_2013_11_12_20_53_09_00.jpg"))
+
+    def test_get_new_file_date_from_file(self):
+        date = e2t.get_file_date(self.jpg_testfile)
+        fn = e2t.get_new_file_name(date, 'test')
+        self.assertEqual(fn, ("2013/2013_11/2013_11_12/2013_11_12_20/"
+                              "test_2013_11_12_20_53_09_00.jpg"))
+        date = e2t.get_file_date(self.jpg_testfile, round_secs=5*60)
+        fn = e2t.get_new_file_name(date, 'test')
+        self.assertEqual(fn, ("2013/2013_11/2013_11_12/2013_11_12_20/"
+                              "test_2013_11_12_20_55_00_00.jpg"))
 
     def test_get_new_file_nulls(self):
         date = time.strptime("20131112 205309", "%Y%m%d %H%M%S")
@@ -254,10 +266,18 @@ class TestExifTraitcapture(unittest.TestCase):
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
 
 
-    # tests for process_camera_images
-    def test_process_camera_images(self):
-        rmtree(self.out_dirname)
-        e2t.process_camera_images([self.jpg_testfile,], self.camera)
+    # tests for process_image
+    def test_process_image(self):
+        e2t.process_image((self.jpg_testfile, self.camera, "jpg"))
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        self.assertTrue(path.exists(self.r_1080_path))
+        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
+        self.assertTrue(path.exists(self.r_640_path))
+        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
+
+    def test_process_image_map(self):
+        map(e2t.process_image, [(self.jpg_testfile, self.camera, "jpg")])
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
         self.assertTrue(path.exists(self.r_1080_path))
@@ -270,7 +290,7 @@ class TestExifTraitcapture(unittest.TestCase):
         configs = [
                 {
                     'archive_dest': './test/out/archive',
-                    'camera_name_f': 'RGB',
+                    'camera_name_f': 'IP01-RGB',
                     'camera_timezone': (11,0),
                     'current_expt': 'BVZ00000',
                     'destination': './test/out/timestreams',
@@ -305,9 +325,84 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.generate_config_csv(out_csv)
         self._md5test(out_csv, "de1cd9eb7d630c38bf1ece0237004b1b")
 
+    # tests for main function
+    def test_main(self):
+        e2t.main({
+            '-1': False,
+            '-a': None,
+            '-c': './test/test_config.csv',
+            '-g': None,
+            '-t': None})
+        #os.system("tree %s" % path.dirname(self.out_dirname))
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        self.assertTrue(path.exists(self.r_1080_path))
+        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
+        self.assertTrue(path.exists(self.r_640_path))
+        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
+
+    def test_main_threads(self):
+        # with a good value for threads
+        e2t.main({
+            '-1': False,
+            '-a': None,
+            '-c': './test/test_config.csv',
+            '-g': None,
+            '-t': '2'})
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        self.assertTrue(path.exists(self.r_1080_path))
+        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
+        self.assertTrue(path.exists(self.r_640_path))
+        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
+
+    def test_main_threads_bad(self):
+        # and with a bad one (should default back to n_cpus)
+        e2t.main({
+            '-1': False,
+            '-a': None,
+            '-c': './test/test_config.csv',
+            '-g': None,
+            '-t': "several"})
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        self.assertTrue(path.exists(self.r_1080_path))
+        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
+        self.assertTrue(path.exists(self.r_640_path))
+        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
+
+    def test_main_threads_one(self):
+        # and with -1
+        e2t.main({
+            '-1': True,
+            '-a': None,
+            '-c': './test/test_config.csv',
+            '-g': None,
+            '-t': None})
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        self.assertTrue(path.exists(self.r_1080_path))
+        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
+        self.assertTrue(path.exists(self.r_640_path))
+        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
+
+
+    def test_main_generate(self):
+        conf_out = path.join(self.out_dirname, "config.csv")
+        with self.assertRaises(SystemExit):
+            e2t.main({
+                '-1': False,
+                '-a': None,
+                '-c': None,
+                '-g': conf_out,
+                '-t': None})
+        self.assertTrue(path.exists(conf_out))
+        self._md5test(conf_out, "de1cd9eb7d630c38bf1ece0237004b1b")
+
     def tearDown(self):
-        #pass
+        #os.system("tree %s" % path.dirname(self.out_dirname))
         rmtree(self.out_dirname)
+        #pass
 
 
 if __name__ == "__main__":
