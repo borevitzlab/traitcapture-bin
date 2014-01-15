@@ -1,10 +1,8 @@
 import ConfigParser as configparser
 from csv import reader, DictReader
-from docopt import docopt
 import exifread as er
 import os
 from os import path
-from PIL import Image
 import shutil
 from sys import exit, stdout
 from time import strptime, strftime, mktime, localtime, struct_time
@@ -212,6 +210,7 @@ def resize_image(dest_fn, src_fn, x, y, fmt="JPEG", keep_aspect=False,
     """
     Resize image and write it out.
     """
+    from PIL import Image
     im = Image.open(src_fn)
     if keep_aspect:
         im.thumbnail((x, y), Image.ANTIALIAS)
@@ -459,5 +458,6 @@ def main(opts):
 
 
 if __name__ == "__main__":
+    from docopt import docopt
     opts = docopt(CLI_OPTS)
     main(opts)
