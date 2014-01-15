@@ -1,0 +1,3 @@
+use,camera_name_f,location,user,mode,method,source,destination,archive_dest,interval,sunrise,sunset,current_expt,expt_start,expt_end,camera_timezone,resolutions,image_types
+1,IP01-RGB,EUC-R01C01,Glasshouses,batch,move,./test/img/camupload,./test/out/timestreams,./test/out/archive,5,500,2200,BVZ00000,2013_12_01,2013_12_31,1100,original~1024x768~640x480,jpg
+0,WONT BE DONE,EUC-R01C01,Glasshouses,batch,copy,./test/img/camupload,./test/out/timestreams,./test/out/archive,5,500,2200,BVZ00000,2013_12_01,2013_12_31,1100,original~1024x768~640x480,jpg

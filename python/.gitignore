@@ -1,4 +1,5 @@
 *.swp
+test/img
 
 # python compiled files
 *.pyc
@@ -7,6 +8,7 @@
 # testing
 .coverage
 .tox
+.noseids
 
 # Packages
 *.egg
