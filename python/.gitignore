@@ -1,4 +1,5 @@
 *.swp
+test/img
 
 # python compiled files
 *.pyc
