@@ -264,7 +264,6 @@ def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
 
     if len(resolutions) == 1 and resolutions[0] in FULLRES_CONSTANTS:
         # there's no down-sizing to do, so get out now.
-        print "no downsizing"
         return
 
     in_ext = path.splitext(image)[-1].lstrip(".")
@@ -346,8 +345,6 @@ def process_image((image, camera, ext)):
             os.makedirs(camera[FIELDS["archive_dest"]])
         shutil.copy2(image, archive_image)
 
-    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
-
     #TODO: BUG: this won't work if images aren't in chronological order
     #if last_date == image_date:
     #    # increment the sub-second counter
@@ -359,6 +356,7 @@ def process_image((image, camera, ext)):
     try:
         # deal with original image (move/copy etc)
         timestreamise_image(image, camera, subsec=subsec)
+        #TODO ext in RAW_FORMATS, not that below
         if not ext == "raw":
             # do the resizing of images
             do_image_resizing(image, camera)
@@ -376,6 +374,8 @@ def get_local_path(this_path):
 
 def localise_cam_config(camera):
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
+    camera[FIELDS["archive_dest"]] = \
+          get_local_path(camera[FIELDS["archive_dest"]])
     camera[FIELDS["destination"]] = get_local_path(camera[FIELDS["destination"]])
     return camera
 
@@ -403,6 +403,7 @@ def find_image_files(camera):
         walk = os.walk(src, topdown=True)
         for cur_dir, dirs, files in walk:
             if len(dirs) > 0:
+                #TODO: Accept extra directories if they start w/ '_'
                 raise ValueError("too many subdirs")
             for fle in files:
                 this_ext = path.splitext(fle)[-1].lower().strip(".")
@@ -432,19 +433,21 @@ def main(opts):
         for ext, images in find_image_files(camera).iteritems():
             last_date = None
             subsec = 0
+            #TODO: sort out the whole subsecond clusterfuck
 
             if "-1" in opts and opts["-1"]:
+                #TODO test for this block
                 for image in images:
-                    process_image(image, camera, ext)
+                    process_image((image, camera, ext))
             else:
                 from multiprocessing import Pool, cpu_count
                 if "-t" in opts and opts["-t"] is not None:
                     try:
                         threads = int(opts["-t"])
                     except ValueError:
-                        threads = cpu_count()
+                        threads = cpu_count() - 1
                 else:
-                    threads = cpu_count()
+                    threads = cpu_count() - 1
 
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
@@ -457,5 +460,4 @@ def main(opts):
 
 if __name__ == "__main__":
     opts = docopt(CLI_OPTS)
-    print(opts)
     main(opts)
