@@ -6,9 +6,11 @@ import os
 from os import path
 from PIL import Image
 import shutil
-from sys import exit
+from sys import exit, stdout
 from time import strptime, strftime, mktime, localtime, struct_time
 from voluptuous import Required, Schema
+from itertools import cycle
+
 
 EXIF_DATE_TAG = "Image DateTime"
 EXIF_DATE_FMT = "%Y:%m:%d %H:%M:%S"
@@ -28,10 +30,12 @@ RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
 
 CLI_OPTS = """
 USAGE:
-    exif2timestream.py [-a ARCHIVE_DIR] -c CAM_CONFIG_CSV
+    exif2timestream.py [-a ARCHIVE_DIR -t PROCESSES -1] -c CAM_CONFIG_CSV
     exif2timestream.py -g CAM_CONFIG_CSV
 
 OPTIONS:
+    -1                  Use one core
+    -t PROCESSES        Number of processes to use. Defaults to 1
     -a ARCHIVE_DIR      Directory to archive processed photos to when action is
                         "archive".
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
@@ -265,6 +269,8 @@ def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
 
     in_ext = path.splitext(image)[-1].lstrip(".")
     image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+    if not image_date:
+        return
     for resolution in resolutions:
         if isinstance(resolution, str):
             # fullres
@@ -272,7 +278,7 @@ def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
         x, y = resolution
         resized_name = make_timestream_name(camera, res=resolution)
         resized_image = get_new_file_name(image_date, resized_name,
-                n=subsec, ext=in_ext)
+                    n=subsec, ext=in_ext)
         resized_image = path.join(
             camera[FIELDS["destination"]],
             resized_name,
@@ -293,6 +299,8 @@ def do_image_resizing(image, camera, subsec=0, keep_aspect=False,
 def timestreamise_image(image, camera, subsec=0):
     # make new image path
     image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+    if not image_date:
+        return
     in_ext = path.splitext(image)[-1].lstrip(".")
     ts_name = make_timestream_name(camera, res="fullres")
     out_image = get_new_file_name(
@@ -321,46 +329,45 @@ def timestreamise_image(image, camera, subsec=0):
     #TODO: implement proper try/except. for now, just let the error crash it
 
 
-def process_camera_images(images, camera, ext="jpg"):
+def process_image((image, camera, ext)):
     """
     Given a camera config and list of images, will do the required
     move/copy/resize operations.
     """
-    last_date = None
+    stdout.write(".")
+    stdout.flush()
+    # archive a backup before we fuck anything up
+    if camera[FIELDS["method"]] == "archive":
+        archive_image = path.join(
+                camera[FIELDS["archive_dest"]],
+                path.basename(image)
+                )
+        if not path.exists(camera[FIELDS["archive_dest"]]):
+            os.makedirs(camera[FIELDS["archive_dest"]])
+        shutil.copy2(image, archive_image)
+
+    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+
+    #TODO: BUG: this won't work if images aren't in chronological order
+    #if last_date == image_date:
+    #    # increment the sub-second counter
+    #    subsec += 1
+    #else:
+    #    # we've moved to the next time, so 0-based subsec counter == 0
     subsec = 0
-    for image in images:
-        # archive a backup before we fuck anything up
-        if camera[FIELDS["method"]] == "archive":
-            archive_image = path.join(
-                    camera[FIELDS["archive_dest"]],
-                    path.basename(image)
-                    )
-            if not path.exists(camera[FIELDS["archive_dest"]]):
-                os.makedirs(camera[FIELDS["archive_dest"]])
-            shutil.copy2(image, archive_image)
 
-        image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+    try:
+        # deal with original image (move/copy etc)
+        timestreamise_image(image, camera, subsec=subsec)
+        if not ext == "raw":
+            # do the resizing of images
+            do_image_resizing(image, camera)
+    except SkipImage:
+       return
 
-        #TODO: BUG: this won't work if images aren't in chronological order
-        if last_date == image_date:
-            # increment the sub-second counter
-            subsec += 1
-        else:
-            # we've moved to the next time, so 0-based subsec counter == 0
-            subsec = 0
-
-        try:
-            # deal with original image (move/copy etc)
-            timestreamise_image(image, camera, subsec=subsec)
-            if not ext == "raw":
-                # do the resizing of images
-                do_image_resizing(image, camera)
-        except SkipImage:
-            continue
-
-        if camera[FIELDS["method"]] in {"move", "archive"}:
-            # images have already been archived above, so just delete originals
-            os.unlink(image)
+    if camera[FIELDS["method"]] in {"move", "archive"}:
+        # images have already been archived above, so just delete originals
+        os.unlink(image)
 
 
 def get_local_path(this_path):
@@ -423,9 +430,32 @@ def main(opts):
     cameras = parse_camera_config_csv(opts["-c"])
     for camera in cameras:
         for ext, images in find_image_files(camera).iteritems():
-            process_camera_images(images, camera, ext)
+            last_date = None
+            subsec = 0
+
+            if "-1" in opts and opts["-1"]:
+                for image in images:
+                    process_image(image, camera, ext)
+            else:
+                from multiprocessing import Pool, cpu_count
+                if "-t" in opts and opts["-t"] is not None:
+                    try:
+                        threads = int(opts["-t"])
+                    except ValueError:
+                        threads = cpu_count()
+                else:
+                    threads = cpu_count()
+
+                # set the function's camera-wide arguments
+                args = zip(images, cycle([camera]), cycle([ext]))
+                pool = Pool(threads)
+                pool.map(process_image, args)
+                pool.close()
+                pool.join()
+    print # add a newline
 
 
 if __name__ == "__main__":
     opts = docopt(CLI_OPTS)
+    print(opts)
     main(opts)
