@@ -1,4 +1,3 @@
-import ConfigParser as configparser
 from csv import reader, DictReader
 import exifread as er
 import os
@@ -28,14 +27,12 @@ RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
 
 CLI_OPTS = """
 USAGE:
-    exif2timestream.py [-a ARCHIVE_DIR -t PROCESSES -1] -c CAM_CONFIG_CSV
+    exif2timestream.py [-t PROCESSES -1] -c CAM_CONFIG_CSV
     exif2timestream.py -g CAM_CONFIG_CSV
 
 OPTIONS:
     -1                  Use one core
     -t PROCESSES        Number of processes to use. Defaults to 1
-    -a ARCHIVE_DIR      Directory to archive processed photos to when action is
-                        "archive".
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
     -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
                         path.
@@ -243,7 +240,7 @@ def timestreamise_image(image, camera, subsec=0):
     # make new image path
     image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
     if not image_date:
-        return
+        raise SkipImage
     in_ext = path.splitext(image)[-1].lstrip(".")
     ts_name = make_timestream_name(camera, res="fullres")
     out_image = get_new_file_name(
@@ -370,13 +367,16 @@ def main(opts):
         generate_config_csv(opts["-g"])
         exit()
     cameras = parse_camera_config_csv(opts["-c"])
+    n_images = 0
     for camera in cameras:
         for ext, images in find_image_files(camera).iteritems():
+            n_images += len(images)
             last_date = None
             subsec = 0
             #TODO: sort out the whole subsecond clusterfuck
 
             if "-1" in opts and opts["-1"]:
+                print "using 1 thread"
                 #TODO test for this block
                 for image in images:
                     process_image((image, camera, ext))
@@ -389,6 +389,7 @@ def main(opts):
                         threads = cpu_count() - 1
                 else:
                     threads = cpu_count() - 1
+                print "using %i threads" % threads
 
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
