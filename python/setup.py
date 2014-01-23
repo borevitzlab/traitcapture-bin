@@ -24,14 +24,14 @@ test_requires = [
 setup(
     name="traitcapture-bin",
     py_modules=['exif2timestream', ],
-    version="0.1a",
+    version="0.1a1",
     install_requires=install_requires,
     tests_require=test_requires,
     description=desc,
     author="Kevin Murray",
     author_email="spam@kdmurray.id.au",
     url="https://github.com/borevitzlab/traitcapture-bin",
-    keywords=["http", "multipart", "post", "urllib2"],
+    keywords=["timestream", "timelapse", "photography", "video"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
