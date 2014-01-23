@@ -66,18 +66,6 @@ class TestExifTraitcapture(unittest.TestCase):
         '2013_11_12', '2013_11_12_20',
         'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig_2013_11_12_20_55_00_00.JPG'
         )
-    r_1080_path =  path.join(
-        out_dirname, "timestreams",
-        'BVZ00000-EUC-R01C01-IP01-RGB~1024x768-orig', '2013', '2013_11',
-        '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~1024x768-orig_2013_11_12_20_55_00_00.JPG',
-        )
-    r_640_path =  path.join(
-        out_dirname, "timestreams",
-        'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig', '2013', '2013_11',
-        '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~640x480-orig_2013_11_12_20_55_00_00.JPG'
-        )
 
     maxDiff = None
 
@@ -150,24 +138,6 @@ class TestExifTraitcapture(unittest.TestCase):
         date = e2t.get_file_date(self.noexif_testfile)
         self.assertIsNone(date)
 
-    # tests for resize_image
-    def test_resize_image_keepaspect(self):
-        out = path.join(self.out_dirname, "im1_thumbed_640x480.jpg")
-        im = e2t.resize_image(out, self.jpg_testfile, 640, 480,
-                keep_aspect=True)
-        self._md5test(out, "967e7f01b1c42d693c42c201dddc0e6c")
-
-    def test_resize_image(self):
-        out = path.join(self.out_dirname, "im1_resized_640x480.jpg")
-        im = e2t.resize_image(out, self.jpg_testfile, 640, 480)
-        self._md5test(out, "713af12ccbcf79ec1af5651f0d42e23d")
-
-    def test_resize_image_crop(self):
-        out = path.join(self.out_dirname, "im1_resized_640x480.jpg")
-        with self.assertRaises(NotImplementedError):
-            e2t.resize_image(out, self.jpg_testfile, 640, 480,
-                keep_aspect=False, crop=True)
-
     # tests for get_new_file_name
     def test_get_new_file_name(self):
         date = time.strptime("20131112 205309", "%Y%m%d %H%M%S")
@@ -238,29 +208,6 @@ class TestExifTraitcapture(unittest.TestCase):
             raise ValueError("Non-Unix/Win path seperator '%s' not supported" %
                     os.path.sep)
 
-    # tests for do_image_resizing
-    def test_do_image_resizing(self):
-        e2t.do_image_resizing(self.jpg_testfile, self.camera)
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
-
-    def test_do_image_resizing_params(self):
-        # with keep-aspect = T
-        e2t.do_image_resizing(self.jpg_testfile, self.camera, keep_aspect=True)
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "be834a62e71373f2103426d07457beb0")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "967e7f01b1c42d693c42c201dddc0e6c")
-        # with keep-aspect = F, crop = T
-        # NOT IMPLEMENTED, HENCE COMMENTED
-        #e2t.do_image_resizing(self.jpg_testfile, self.camera, crop=True)
-        #self.assertTrue(path.exists(self.r_1080_path))
-        #self._md5test(self.r_1080_path, "")
-        #self.assertTrue(path.exists(self.r_640_path))
-        #self._md5test(self.r_640_path, "")
-
     # tests for timestreamise_image
     def test_timestreamise_image(self):
         e2t.timestreamise_image(self.jpg_testfile, self.camera)
@@ -273,19 +220,11 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.process_image((self.jpg_testfile, self.camera, "jpg"))
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
 
     def test_process_image_map(self):
         map(e2t.process_image, [(self.jpg_testfile, self.camera, "jpg")])
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
 
     # tests for parse_camera_config_csv
     def test_parse_camera_config_csv(self):
@@ -338,10 +277,6 @@ class TestExifTraitcapture(unittest.TestCase):
         #os.system("tree %s" % path.dirname(self.out_dirname))
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
 
     def test_main_threads(self):
         # with a good value for threads
@@ -353,10 +288,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-t': '2'})
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
 
     def test_main_threads_bad(self):
         # and with a bad one (should default back to n_cpus)
@@ -368,10 +299,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-t': "several"})
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
 
     def test_main_threads_one(self):
         # and with -1
@@ -383,11 +310,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-t': None})
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-        self.assertTrue(path.exists(self.r_1080_path))
-        self._md5test(self.r_1080_path, "77998432afa84187aeb4e9a5f904a4df")
-        self.assertTrue(path.exists(self.r_640_path))
-        self._md5test(self.r_640_path, "713af12ccbcf79ec1af5651f0d42e23d")
-
 
     def test_main_generate(self):
         conf_out = path.join(self.out_dirname, "config.csv")
