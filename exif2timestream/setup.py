@@ -1,16 +1,12 @@
 from setuptools import setup
 
 desc = """
-traitcapture-bin:
-    A series of scripts that do various stages of the traitcapture pipeline.
+exif2timestream: Rename image files into a timestream from exif data.
 """
 
 install_requires = [
         "ExifRead==1.4.2",
-        "Pillow==2.3.0",
         "docopt==0.6.1",
-        "filemagic==1.6",
-        "imageio==0.4.1",
         "voluptuous==0.8.4",
         ]
 
@@ -22,7 +18,7 @@ test_requires = [
         ]
 
 setup(
-    name="traitcapture-bin",
+    name="exif2timestream",
     py_modules=['exif2timestream', ],
     version="0.1a1",
     install_requires=install_requires,
