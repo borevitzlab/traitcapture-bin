@@ -255,7 +255,6 @@ def timestreamise_image(image, camera, subsec=0):
         ts_name,
         out_image
         )
-
     # make the target directory
     out_dir = path.dirname(out_image)
     if not path.exists(out_dir):
@@ -307,22 +306,19 @@ def process_image((image, camera, ext)):
             os.makedirs(camera[FIELDS["archive_dest"]])
         archive_image = _dont_clobber(archive_image)
         shutil.copy2(image, archive_image)
-
-    #TODO: BUG: this won't work if images aren't in chronological order
+    #TODO: BUG: this won't work if images aren't in chronological order. Which
+    # they never will be.
     #if last_date == image_date:
     #    # increment the sub-second counter
     #    subsec += 1
     #else:
     #    # we've moved to the next time, so 0-based subsec counter == 0
     subsec = 0
-
     try:
         # deal with original image (move/copy etc)
         timestreamise_image(image, camera, subsec=subsec)
-        #TODO ext in RAW_FORMATS, not that below
     except SkipImage:
        return
-
     if camera[FIELDS["method"]] in {"move", "archive"}:
         # images have already been archived above, so just delete originals
         os.unlink(image)
@@ -343,11 +339,9 @@ def localise_cam_config(camera):
 def parse_camera_config_csv(filename):
     fh = open(filename)
     cam_config = DictReader(fh)
-
     for camera in cam_config:
         camera = localise_cam_config(camera)
         camera = validate_camera(camera)
-
         if camera[FIELDS["use"]]:
             yield camera
 
@@ -397,7 +391,6 @@ def main(opts):
             last_date = None
             subsec = 0
             #TODO: sort out the whole subsecond clusterfuck
-
             if "-1" in opts and opts["-1"]:
                 print "using 1 thread"
                 #TODO test for this block
@@ -413,7 +406,6 @@ def main(opts):
                 else:
                     threads = cpu_count() - 1
                 print "using %i threads" % threads
-
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
                 pool = Pool(threads)
