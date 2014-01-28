@@ -7,6 +7,7 @@ from sys import exit, stdout
 from time import strptime, strftime, mktime, localtime, struct_time
 from voluptuous import Required, Schema
 from itertools import cycle
+from inspect import isclass
 
 
 EXIF_DATE_TAG = "Image DateTime"
@@ -38,7 +39,7 @@ OPTIONS:
                         path.
 """
 
-class SkipImage(Exception):
+class SkipImage(StopIteration):
     pass
 
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
@@ -260,14 +261,34 @@ def timestreamise_image(image, camera, subsec=0):
     if not path.exists(out_dir):
         # makedirs is like `mkdir -p`, creates parents, but raises
         # os.error if target already exits
-        os.makedirs(out_dir)
-        #TODO: implement try/except. for now, just let the error crash it
+        try:
+            os.makedirs(out_dir)
+        except os.error:
+            raise SkipImage
+    # And do the copy
+    try:
+        shutil.copy(image, _dont_clobber(out_image, mode=SkipImage))
+    except Exception as e:
+        raise SkipImage
 
-    #try:
-    shutil.copy(image, out_image)
-    #except Exception as e:
-    #TODO: implement proper try/except. for now, just let the error crash it
 
+def _dont_clobber(fn, mode="append"):
+    if path.exists(fn):
+        if isinstance(mode, Exception):
+            raise mode
+        elif isclass(mode) and issubclass(mode, StopIteration):
+            raise mode()
+        elif mode == "append":
+            base, ext = path.splitext(fn)
+            # append _1 to filename
+            if ext != '':
+                return ".".join(["_".join([base, "1"]), ext])
+            else:
+                return "_".join([base, "1"])
+        else:
+            raise ValueError("Bad _dont_clobber mode: %r", mode)
+    else:
+        return fn
 
 def process_image((image, camera, ext)):
     """
@@ -284,6 +305,7 @@ def process_image((image, camera, ext)):
                 )
         if not path.exists(camera[FIELDS["archive_dest"]]):
             os.makedirs(camera[FIELDS["archive_dest"]])
+        archive_image = _dont_clobber(archive_image)
         shutil.copy2(image, archive_image)
 
     #TODO: BUG: this won't work if images aren't in chronological order
@@ -370,6 +392,7 @@ def main(opts):
     n_images = 0
     for camera in cameras:
         for ext, images in find_image_files(camera).iteritems():
+            images = sorted(images)
             n_images += len(images)
             last_date = None
             subsec = 0

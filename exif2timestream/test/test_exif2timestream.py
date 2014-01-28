@@ -8,6 +8,7 @@ import time
 from time import strptime
 import unittest
 from voluptuous import MultipleInvalid
+from tempfile import NamedTemporaryFile
 
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
@@ -123,6 +124,34 @@ class TestExifTraitcapture(unittest.TestCase):
         self.assertIsInstance(rnd_5, time.struct_time)
         self.assertEqual(time.mktime(rnd_5), time.mktime(rnd_5_expt))
 
+    # tests for _dont_clobber
+    def test_dont_clobber(self):
+        stop = e2t.SkipImage()
+        fh = NamedTemporaryFile()
+        fn = fh.name
+        # test raise/exception mode
+        with self.assertRaises(e2t.SkipImage):
+            e2t._dont_clobber(fn, mode=e2t.SkipImage)
+        with self.assertRaises(e2t.SkipImage):
+            e2t._dont_clobber(fn, mode=stop)
+        # test with bad mode
+        with self.assertRaises(ValueError):
+            e2t._dont_clobber(fn, mode="BADMODE")
+        # test append mode
+        expt = fn + "_1"
+        self.assertEqual(e2t._dont_clobber(fn), expt)
+        # test append mode with file extension
+        fn_ext = fn + ".txt"
+        with open(fn_ext, "w") as fh:
+            fh.write("This file will exist") # make a file with an extension
+        e_base, e_ext = path.splitext(fn_ext)
+        expt = ".".join(["_".join([e_base, "1"]), e_ext])
+        self.assertEqual(e2t._dont_clobber(fn_ext), expt)
+        os.unlink(fn_ext) # we have to remove this ourselves
+        # test append mode with file that doesn't exist
+        wontexist = fn + "_shouldnteverexist"
+        self.assertEqual(e2t._dont_clobber(wontexist), wontexist)
+
     # tests for get_file_date
     def test_get_file_date_jpg(self):
         actual = time.strptime("20131112 205309", "%Y%m%d %H%M%S")
@@ -184,6 +213,7 @@ class TestExifTraitcapture(unittest.TestCase):
     def test_find_image_files(self):
         expt = {"jpg": {path.join(self.camupload_dir, x) for x in [
                         'jpg/IMG_0001.JPG',
+                        'jpg/IMG_0002.JPG',
                         'jpg/IMG_0630.JPG',
                         'jpg/IMG_0633.JPG']
                         },
@@ -276,7 +306,15 @@ class TestExifTraitcapture(unittest.TestCase):
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
         self.assertTrue(path.exists(self.r_fullres_path))
-        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        with open(self.r_fullres_path, "rb") as fh:
+            out_contents = fh.read()
+        md5hash = md5()
+        md5hash.update(out_contents)
+        md5hash = md5hash.hexdigest()
+        # With threads, it's not determinisitc as to which will finish first
+        self.assertIn(md5hash, {
+            "76ee6fb2f5122d2f5815101ec66e7cb8",  # IMG0001.JPG
+            "904f7d4eadcf7457fa5e55252b244d5b"})  # IMG0002.JPG
 
     def test_main_threads(self):
         # with a good value for threads
@@ -287,7 +325,15 @@ class TestExifTraitcapture(unittest.TestCase):
             '-g': None,
             '-t': '2'})
         self.assertTrue(path.exists(self.r_fullres_path))
-        self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
+        with open(self.r_fullres_path, "rb") as fh:
+            out_contents = fh.read()
+        md5hash = md5()
+        md5hash.update(out_contents)
+        md5hash = md5hash.hexdigest()
+        # With threads, it's not determinisitc as to which will finish first
+        self.assertIn(md5hash, {
+            "76ee6fb2f5122d2f5815101ec66e7cb8",  # IMG0001.JPG
+            "904f7d4eadcf7457fa5e55252b244d5b"})  # IMG0002.JPG
 
     def test_main_threads_bad(self):
         # and with a bad one (should default back to n_cpus)
