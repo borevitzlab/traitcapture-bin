@@ -9,6 +9,7 @@ test/img
 .coverage
 .tox
 .noseids
+e2t*.log
 
 # Packages
 *.egg
