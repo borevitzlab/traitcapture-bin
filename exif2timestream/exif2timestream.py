@@ -8,6 +8,7 @@ from time import strptime, strftime, mktime, localtime, struct_time
 from voluptuous import Required, Schema, MultipleInvalid
 from itertools import cycle
 from inspect import isclass
+import logging
 
 
 EXIF_DATE_TAG = "Image DateTime"
@@ -28,19 +29,23 @@ RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
 
 CLI_OPTS = """
 USAGE:
-    exif2timestream.py [-t PROCESSES -1] -c CAM_CONFIG_CSV
+    exif2timestream.py [-t PROCESSES -1 -l LOGDIR] -c CAM_CONFIG_CSV
     exif2timestream.py -g CAM_CONFIG_CSV
 
 OPTIONS:
     -1                  Use one core
-    -t PROCESSES        Number of processes to use. Defaults to 1
+    -t PROCESSES        Number of processes to use. [Default: 1]
+    -l LOGDIR           Directory to contain log files. [Default:  .]
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
     -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
-                        path.
+                        path. [Default: config.csv]
 """
 
-class SkipImage(StopIteration):
-    pass
+
+# Sort out logging.
+NOW = strftime("%Y%m%dT%H%M", localtime())
+LOG = logging.getLogger("exif2timestream")
+
 
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
 # compability
@@ -64,6 +69,16 @@ FIELDS = {
         'use': 'use',
         'user': 'user'
         }
+
+
+class SkipImage(StopIteration):
+    """
+    Exception that specifically means skip this image.
+
+    Allows try-except blocks to pass any errors on to the calling functions,
+    unless they can be solved by skipping the erroring image.
+    """
+    pass
 
 
 def validate_camera(camera):
@@ -191,6 +206,7 @@ def get_file_date(filename, round_secs=1):
         return None
     if round_secs > 1:
         date = round_struct_time(date, round_secs)
+    LOG.debug("Date of '{0:s}' is '{1:s}'".format(filename, date))
     return date
 
 
@@ -200,11 +216,16 @@ def get_new_file_name(date_tuple, ts_name, n=0, fmt=TS_FMT, ext="jpg"):
     datestamp, timestream name, sub-second series count and extension.
     """
     if date_tuple is None or not date_tuple:
-        raise ValueError("Must supply get_new_file_name with a valid date")
+        LOG.error("Must supply get_new_file_name with a valid date." + \
+                "Date is '{0:s}'".format(date_tuple))
+        raise ValueError("Must supply get_new_file_name with a valid date.")
     if not ts_name:
-        raise ValueError("Must supply get_new_file_name with timestream name")
+        LOG.error("Must supply get_new_file_name with timestream name." + \
+                "TimeStream name is '{0:s}'".format(ts_name))
+        raise ValueError("Must supply get_new_file_name with timestream name.")
     date_formatted_name = strftime(fmt, date_tuple)
     name = date_formatted_name.format(tsname=ts_name, n=n, ext=ext)
+    LOG.debug("New filename is '{0:s}'".format(name))
     return name
 
 
@@ -223,6 +244,8 @@ def round_struct_time(in_time, round_secs, tz_hrs=0, uselocal=True):
     rv_list[8] = in_time.tm_isdst
     rv_list[6] = in_time.tm_wday
     retval = struct_time(tuple(rv_list))
+    LOG.debug("time {0:s} rounded to {1:d} seconds is {2:s}".format(
+            in_time, round_secs, retval))
     return retval
 
 
@@ -269,21 +292,30 @@ def timestreamise_image(image, camera, subsec=0):
         try:
             os.makedirs(out_dir)
         except os.error:
+            LOG.warn("Could not make dir '{0:s}', skipping image '{1:s}'".format(
+                    out_dir, image))
             raise SkipImage
     # And do the copy
     try:
-        shutil.copy(image, _dont_clobber(out_image, mode=SkipImage))
+        shutil.copy(image, dest)
+        LOG.info("Copied '{0:s}' to '{1:s}".format(image, dest))
     except Exception as e:
+        LOG.warn("Could copy '{0:s}' to '{1:s}', skipping image".format(
+                image, dest))
         raise SkipImage
 
 
 def _dont_clobber(fn, mode="append"):
     if path.exists(fn):
-        if isinstance(mode, Exception):
+        # Deal with SkipImage or StopIteration exceptions
+        if isinstance(mode, StopIteration):
+            LOG.debug("Path '{0}' exists, raising an Exception".format(fn))
             raise mode
         elif isclass(mode) and issubclass(mode, StopIteration):
+            LOG.debug("Path '{0}' exists, raising an Exception".format(fn))
             raise mode()
         elif mode == "append":
+            LOG.debug("Path '{0}' exists, adding '_1' to its name".format(fn))
             base, ext = path.splitext(fn)
             # append _1 to filename
             if ext != '':
@@ -293,7 +325,10 @@ def _dont_clobber(fn, mode="append"):
         else:
             raise ValueError("Bad _dont_clobber mode: %r", mode)
     else:
+        # Doesn't exist, so return good path
+        LOG.debug("Path '{0}' doesn't exist. Returning it.".format(fn))
         return fn
+
 
 def process_image((image, camera, ext)):
     """
@@ -330,7 +365,12 @@ def process_image((image, camera, ext)):
        return
     if camera[FIELDS["method"]] in {"move", "archive"}:
         # images have already been archived above, so just delete originals
-        os.unlink(image)
+        try:
+            os.unlink(image)
+        except os.error as e:
+            LOG.error("Could not delete '{0}'".format(image))
+
+
 
 
 def get_local_path(this_path):
@@ -377,6 +417,10 @@ def find_image_files(camera):
                     except KeyError:
                         ext_files[ext] = []
                         ext_files[ext].append(fle_path)
+            LOG.info("Found {0} {1} files for camera {2}.".format(
+                len(files),
+                ext,
+                camera[FIELDS["name"]]))
     return ext_files
 
 
@@ -394,15 +438,19 @@ def main(opts):
     cameras = parse_camera_config_csv(opts["-c"])
     n_images = 0
     for camera in cameras:
+        print "Processing camera {0}".format(camera[FIELDS["name"]]),
+        LOG.info("Processing camera {0}".format(camera[FIELDS["name"]]))
         for ext, images in find_image_files(camera).iteritems():
             images = sorted(images)
-            n_images += len(images)
+            n_cam_images = len(images)
+            print " ({0} images from this camera)".format(n_cam_images)
+            LOG.info("Have {0} images from this camera".format(n_cam_images))
+            n_images += n_cam_images
             last_date = None
             subsec = 0
             #TODO: sort out the whole subsecond clusterfuck
             if "-1" in opts and opts["-1"]:
-                print "using 1 thread"
-                #TODO test for this block
+                LOG.info("using 1 process (What is this? Fucking 1990?)")
                 for image in images:
                     process_image((image, camera, ext))
             else:
@@ -414,17 +462,40 @@ def main(opts):
                         threads = cpu_count() - 1
                 else:
                     threads = cpu_count() - 1
-                print "using %i threads" % threads
+                LOG.info("using {0:d} processes".format(threads))
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
                 pool = Pool(threads)
                 pool.map(process_image, args)
                 pool.close()
                 pool.join()
-    print # add a newline
+    secs_taken = time() - start_time
+    print "\nProcessed a total of {0} images in {1:.2f} seconds".format(
+            n_images, secs_taken)
 
 
 if __name__ == "__main__":
     from docopt import docopt
     opts = docopt(CLI_OPTS)
+    # we want logging, we're not testing/importing the module
+    if "-g" in opts and opts['-g'] is None:
+        FMT = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        CH = logging.StreamHandler()
+        CH.setLevel(logging.ERROR)
+        CH.setFormatter(FMT)
+        FH = logging.FileHandler(path.join(opts['-l'], "e2t_" + NOW + ".log"))
+        FH.setLevel(logging.INFO)
+        FH.setFormatter(FMT)
+        LOG.addHandler(FH)
+        LOG.addHandler(CH)
+    else:
+        # No logging when we're just generating a config file. What could
+        # possibly go wrong...
+        null = logging.NullHandler()
+        LOG.addHandler(null)
+    # lets do this shit.
     main(opts)
+else:
+    # No logging for test/when imported
+    null = logging.NullHandler()
+    LOG.addHandler(null)
