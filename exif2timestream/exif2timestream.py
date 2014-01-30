@@ -426,8 +426,11 @@ def find_image_files(camera):
         walk = os.walk(src, topdown=True)
         for cur_dir, dirs, files in walk:
             if len(dirs) > 0:
-                #TODO: Accept extra directories if they start w/ '_'
-                raise ValueError("too many subdirs")
+                for d in dirs:
+                    if not d.startswith("_"):
+                        LOG.error("Souce directory has too many subdirs.A")
+                        #TODO: Is raising here a good idea?
+                        #raise ValueError("too many subdirs")
             for fle in files:
                 this_ext = path.splitext(fle)[-1].lower().strip(".")
                 if this_ext == ext or ext == "raw" and this_ext in RAW_FORMATS:
