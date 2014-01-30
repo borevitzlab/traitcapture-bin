@@ -4,7 +4,7 @@ import os
 from os import path
 import shutil
 from sys import exit, stdout
-from time import strptime, strftime, mktime, localtime, struct_time
+from time import strptime, strftime, mktime, localtime, struct_time, time
 from voluptuous import Required, Schema, MultipleInvalid
 from itertools import cycle
 from inspect import isclass
@@ -13,20 +13,15 @@ import logging
 
 EXIF_DATE_TAG = "Image DateTime"
 EXIF_DATE_FMT = "%Y:%m:%d %H:%M:%S"
-
 TS_V1_FMT = ("%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/"
              "{tsname:s}_%Y_%m_%d_%H_%M_%S_{n:02d}.{ext:s}")
 TS_V2_FMT = ("%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/"
              "{tsname:s}_%Y_%m_%d_%H_%M_%S_{n:02d}.{ext:s}")
 TS_FMT = TS_V1_FMT
-
 TS_NAME_FMT = "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
-
 FULLRES_CONSTANTS = {"original", "orig", "fullres"}
 IMAGE_TYPE_CONSTANTS = {"raw", "jpg"}
-
 RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
-
 CLI_OPTS = """
 USAGE:
     exif2timestream.py [-t PROCESSES -1 -l LOGDIR] -c CAM_CONFIG_CSV
@@ -48,7 +43,7 @@ LOG = logging.getLogger("exif2timestream")
 
 
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
-# compability
+# compability.
 FIELDS = {
         'archive_dest': 'archive_dest',
         'destination': 'destination',
@@ -82,6 +77,9 @@ class SkipImage(StopIteration):
 
 
 def validate_camera(camera):
+    """Validates and converts to python types the given camera dict (which
+    normally has string values).
+    """
     def date(x):
         if isinstance(x, struct_time):
             return x
@@ -161,7 +159,6 @@ def validate_camera(camera):
             if not x in self.valid_values:
                 raise ValueError
             return x
-
     sch = Schema({
         Required(FIELDS["destination"]): path_exists,
         Required(FIELDS["expt"]): str,
@@ -192,6 +189,7 @@ def validate_camera(camera):
         if camera[FIELDS["use"]] != '0':
             raise e
         return None
+
 
 def get_file_date(filename, round_secs=1):
     """
@@ -251,7 +249,8 @@ def round_struct_time(in_time, round_secs, tz_hrs=0, uselocal=True):
 
 def make_timestream_name(camera, res="fullres", step="orig"):
     """
-    "{expt:s}-{loc:s}-{cam:s}~{res:s}-{step:s}"
+    Makes a timestream name given the format (module-level constant), step,
+    resolution and a camera object.
     """
     if isinstance(res, tuple):
         res = "x".join([str(x) for x in res])
@@ -266,6 +265,7 @@ def make_timestream_name(camera, res="fullres", step="orig"):
 
 
 def timestreamise_image(image, camera, subsec=0):
+    """Process a single image, mv/cp-ing it to its new location"""
     # make new image path
     image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
     if not image_date:
@@ -296,6 +296,7 @@ def timestreamise_image(image, camera, subsec=0):
                     out_dir, image))
             raise SkipImage
     # And do the copy
+    dest = _dont_clobber(out_image, mode=SkipImage)
     try:
         shutil.copy(image, dest)
         LOG.info("Copied '{0:s}' to '{1:s}".format(image, dest))
@@ -306,14 +307,18 @@ def timestreamise_image(image, camera, subsec=0):
 
 
 def _dont_clobber(fn, mode="append"):
+    """Ensure we don't overwrite things, using a variety of methods"""
     if path.exists(fn):
         # Deal with SkipImage or StopIteration exceptions
         if isinstance(mode, StopIteration):
             LOG.debug("Path '{0}' exists, raising an Exception".format(fn))
             raise mode
+        # Ditto, but if we pass them uninstantiated
         elif isclass(mode) and issubclass(mode, StopIteration):
             LOG.debug("Path '{0}' exists, raising an Exception".format(fn))
             raise mode()
+        # Otherwise, append something '_1' to the file name to solve our
+        # problem
         elif mode == "append":
             LOG.debug("Path '{0}' exists, adding '_1' to its name".format(fn))
             base, ext = path.splitext(fn)
@@ -374,27 +379,36 @@ def process_image((image, camera, ext)):
 
 
 def get_local_path(this_path):
+    """Replaces slashes of any kind for the correct kind for the local system"""
     return this_path.replace("/", path.sep).replace("\\", path.sep)
 
 
 def localise_cam_config(camera):
+    """Make camera use localised settings, e.g. path separators"""
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
-    camera[FIELDS["archive_dest"]] = \
-          get_local_path(camera[FIELDS["archive_dest"]])
+    camera[FIELDS["archive_dest"]] =  get_local_path(camera[FIELDS["archive_dest"]])
     camera[FIELDS["destination"]] = get_local_path(camera[FIELDS["destination"]])
     return camera
 
 
 def parse_camera_config_csv(filename):
+    """
+    Parse a camera configuration CSV.
+    It yields localised, validated camera dicts
+    """
     fh = open(filename)
     cam_config = DictReader(fh)
     for camera in cam_config:
         camera = localise_cam_config(camera)
         camera = validate_camera(camera)
-        if camera[FIELDS["use"]]:
+        if camera is not None and camera[FIELDS["use"]]:
             yield camera
 
 def find_image_files(camera):
+    """
+    Scrape a directory for image files, by extension.
+    Possibly, in future, use file magic numbers, but a bad idea on windows.
+    """
     exts = camera[FIELDS["image_types"]]
     ext_files = {}
     for ext in exts:
@@ -424,17 +438,19 @@ def find_image_files(camera):
     return ext_files
 
 
-
 def generate_config_csv(filename):
+    """Make a config csv template"""
     with open(filename, "w") as fh:
         fh.write(",".join([x for x in sorted(FIELDS.values())]))
         fh.write("\n")
 
 
 def main(opts):
+    """The main loop of the module, do the renaming in parallel etc."""
     if "-g" in opts and opts['-g'] is not None:
         generate_config_csv(opts["-g"])
         exit()
+    start_time = time()
     cameras = parse_camera_config_csv(opts["-c"])
     n_images = 0
     for camera in cameras:
