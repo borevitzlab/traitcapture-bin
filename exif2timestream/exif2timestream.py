@@ -29,7 +29,7 @@ USAGE:
 
 OPTIONS:
     -1                  Use one core
-    -t PROCESSES        Number of processes to use. [Default: 1]
+    -t PROCESSES        Number of processes to use.
     -l LOGDIR           Directory to contain log files. [Default:  .]
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
     -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
@@ -351,8 +351,9 @@ def process_image((image, camera, ext)):
                 ts_name,
                 path.basename(image)
                 )
-        if not path.exists(camera[FIELDS["archive_dest"]]):
-            os.makedirs(camera[FIELDS["archive_dest"]])
+        archive_dir = path.dirname(archive_image)
+        if not path.exists(archive_dir):
+            os.makedirs(archive_dir)
         archive_image = _dont_clobber(archive_image)
         shutil.copy2(image, archive_image)
     #TODO: BUG: this won't work if images aren't in chronological order. Which
@@ -499,7 +500,10 @@ if __name__ == "__main__":
         CH = logging.StreamHandler()
         CH.setLevel(logging.ERROR)
         CH.setFormatter(FMT)
-        FH = logging.FileHandler(path.join(opts['-l'], "e2t_" + NOW + ".log"))
+        logdir = opts['-l']
+        if not path.exists(logdir):
+            logdir = "."
+        FH = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".log"))
         FH.setLevel(logging.INFO)
         FH.setFormatter(FMT)
         LOG.addHandler(FH)
