@@ -63,7 +63,7 @@ class TestExifTraitcapture(unittest.TestCase):
             }
 
     r_fullres_path =  path.join(
-        out_dirname, "timestreams",
+        out_dirname, "timestreams", "BVZ00000",
         'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
         'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig_2013_11_12_20_55_00_00.JPG'

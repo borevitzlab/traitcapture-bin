@@ -257,6 +257,7 @@ def timestreamise_image(image, camera, subsec=0):
         )
     out_image = path.join(
         camera[FIELDS["destination"]],
+        camera[FIELDS["expt"]],
         ts_name,
         out_image
         )
@@ -303,8 +304,11 @@ def process_image((image, camera, ext)):
     stdout.flush()
     # archive a backup before we fuck anything up
     if camera[FIELDS["method"]] == "archive":
+        ts_name = make_timestream_name(camera, res="fullres")
         archive_image = path.join(
                 camera[FIELDS["archive_dest"]],
+                camera[FIELDS["expt"]],
+                ts_name,
                 path.basename(image)
                 )
         if not path.exists(camera[FIELDS["archive_dest"]]):
