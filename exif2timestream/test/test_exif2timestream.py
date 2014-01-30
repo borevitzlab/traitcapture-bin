@@ -316,7 +316,7 @@ class TestExifTraitcapture(unittest.TestCase):
             '-1': False,
             '-a': None,
             '-c': './test/config_raw.csv',
-            '-l': '.',
+            '-l': self.out_dirname,
             '-g': None,
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
@@ -328,7 +328,7 @@ class TestExifTraitcapture(unittest.TestCase):
             '-1': False,
             '-a': None,
             '-c': './test/config.csv',
-            '-l': '.',
+            '-l': self.out_dirname,
             '-g': None,
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
@@ -340,7 +340,7 @@ class TestExifTraitcapture(unittest.TestCase):
             '-1': False,
             '-a': None,
             '-c': './test/config.csv',
-            '-l': '.',
+            '-l': self.out_dirname,
             '-g': None,
             '-t': '2'})
         self.assertTrue(path.exists(self.r_fullres_path))
@@ -351,7 +351,7 @@ class TestExifTraitcapture(unittest.TestCase):
             '-1': False,
             '-a': None,
             '-c': './test/config.csv',
-            '-l': '.',
+            '-l': self.out_dirname,
             '-g': None,
             '-t': "several"})
         self.assertTrue(path.exists(self.r_fullres_path))
@@ -362,7 +362,7 @@ class TestExifTraitcapture(unittest.TestCase):
             '-1': True,
             '-a': None,
             '-c': './test/config.csv',
-            '-l': '.',
+            '-l': self.out_dirname,
             '-g': None,
             '-t': None})
         self.assertTrue(path.exists(self.r_fullres_path))
@@ -375,7 +375,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 '-1': False,
                 '-a': None,
                 '-c': None,
-                '-l': '.',
+               '-l': self.out_dirname,
                 '-g': conf_out,
                 '-t': None})
         self.assertTrue(path.exists(conf_out))
