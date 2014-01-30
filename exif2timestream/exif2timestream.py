@@ -5,7 +5,7 @@ from os import path
 import shutil
 from sys import exit, stdout
 from time import strptime, strftime, mktime, localtime, struct_time
-from voluptuous import Required, Schema
+from voluptuous import Required, Schema, MultipleInvalid
 from itertools import cycle
 from inspect import isclass
 
@@ -169,9 +169,14 @@ def validate_camera(camera):
         FIELDS["sunset"]: int_time_hr_min,
         FIELDS["timezone"]: int_time_hr_min,
         })
-    cam = sch(camera)
-    return cam
-
+    try:
+        cam = sch(camera)
+        LOG.debug("Validated camera '{0:s}'".format(cam))
+        return cam
+    except MultipleInvalid as e:
+        if camera[FIELDS["use"]] != '0':
+            raise e
+        return None
 
 def get_file_date(filename, round_secs=1):
     """
