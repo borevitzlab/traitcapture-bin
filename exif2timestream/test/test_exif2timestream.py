@@ -10,6 +10,7 @@ import unittest
 from voluptuous import MultipleInvalid
 from tempfile import NamedTemporaryFile
 
+
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
     test_config_csv = path.join(dirname, "config.csv")
@@ -22,58 +23,58 @@ class TestExifTraitcapture(unittest.TestCase):
     jpg_testfile = path.join(camupload_dir, "jpg", "IMG_0001.JPG")
     raw_testfile = path.join(camupload_dir, "raw", "IMG_0001.CR2")
     camera_win32 = {
-            'archive_dest': '/'.join([out_dirname, 'archive']),
-            'current_expt': 'BVZ00000',
-            'destination': '\\'.join([out_dirname, 'timestreams']),
-            'expt_end': '2013_12_31',
-            'expt_start': '2013_11_01',
-            'location': 'EUC-R01C01',
-            'method': 'copy',
-            'image_types': 'raw~jpg',
-            'interval': '5',
-            'mode': 'batch',
-            'camera_name_f': 'A_CANON',
-            'resolutions': 'original~1024x768~640x480',
-            'source': '\\'.join([dirname, "img", "camupload"]),
-            'sunrise': '500',
-            'sunset': '2200',
-            'camera_timezone': '1100',
-            'use': '1',
-            'user': 'Glasshouses'
-            }
+        'archive_dest': '/'.join([out_dirname, 'archive']),
+        'current_expt': 'BVZ00000',
+        'destination': '\\'.join([out_dirname, 'timestreams']),
+        'expt_end': '2013_12_31',
+        'expt_start': '2013_11_01',
+        'location': 'EUC-R01C01',
+        'method': 'copy',
+        'image_types': 'raw~jpg',
+        'interval': '5',
+        'mode': 'batch',
+        'camera_name_f': 'A_CANON',
+        'resolutions': 'original~1024x768~640x480',
+        'source': '\\'.join([dirname, "img", "camupload"]),
+        'sunrise': '500',
+        'sunset': '2200',
+        'camera_timezone': '1100',
+        'use': '1',
+        'user': 'Glasshouses'
+    }
     camera_unix = {
-            'archive_dest': '/'.join([out_dirname, 'archive']),
-            'current_expt': 'BVZ00000',
-            'destination': '/'.join([out_dirname, 'timestreams']),
-            'expt_end': '2013_12_31',
-            'expt_start': '2013_11_01',
-            'location': 'EUC-R01C01',
-            'method': 'copy',
-            'interval': '5',
-            'image_types': 'raw~jpg',
-            'mode': 'batch',
-            'camera_name_f': 'A_CANON',
-            'resolutions': 'original~1024x768~640x480',
-            'source': '/'.join([dirname, "img", "camupload"]),
-            'sunrise': '500',
-            'sunset': '2200',
-            'camera_timezone': '1100',
-            'use': '1',
-            'user': 'Glasshouses'
-            }
+        'archive_dest': '/'.join([out_dirname, 'archive']),
+        'current_expt': 'BVZ00000',
+        'destination': '/'.join([out_dirname, 'timestreams']),
+        'expt_end': '2013_12_31',
+        'expt_start': '2013_11_01',
+        'location': 'EUC-R01C01',
+        'method': 'copy',
+        'interval': '5',
+        'image_types': 'raw~jpg',
+        'mode': 'batch',
+        'camera_name_f': 'A_CANON',
+        'resolutions': 'original~1024x768~640x480',
+        'source': '/'.join([dirname, "img", "camupload"]),
+        'sunrise': '500',
+        'sunset': '2200',
+        'camera_timezone': '1100',
+        'use': '1',
+        'user': 'Glasshouses'
+    }
 
-    r_fullres_path =  path.join(
+    r_fullres_path = path.join(
         out_dirname, "timestreams", "BVZ00000",
         'BVZ00000-EUC-R01C01-A_CANON~fullres-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
         'BVZ00000-EUC-R01C01-A_CANON~fullres-orig_2013_11_12_20_55_00_00.JPG'
-        )
-    r_raw_path =  path.join(
+    )
+    r_raw_path = path.join(
         out_dirname, "timestreams", "BVZ00000",
         'BVZ00000-EUC-R01C01-A_CANON~fullres-raw', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
         'BVZ00000-EUC-R01C01-A_CANON~fullres-raw_2013_11_12_20_55_00_00.CR2'
-        )
+    )
 
     maxDiff = None
 
@@ -110,11 +111,11 @@ class TestExifTraitcapture(unittest.TestCase):
     # test for localise_cam_config
     def test_localise_cam_config(self):
         self.assertDictEqual(
-                e2t.localise_cam_config(self.camera_win32),
-                self.camera_raw)
+            e2t.localise_cam_config(self.camera_win32),
+            self.camera_raw)
         self.assertDictEqual(
-                e2t.localise_cam_config(self.camera_unix),
-                self.camera_raw)
+            e2t.localise_cam_config(self.camera_unix),
+            self.camera_raw)
 
     # tests for round_struct_time
     def test_round_struct_time_gmt(self):
@@ -150,11 +151,11 @@ class TestExifTraitcapture(unittest.TestCase):
         # test append mode with file extension
         fn_ext = fn + ".txt"
         with open(fn_ext, "w") as fh:
-            fh.write("This file will exist") # make a file with an extension
+            fh.write("This file will exist")  # make a file with an extension
         e_base, e_ext = path.splitext(fn_ext)
         expt = ".".join(["_".join([e_base, "1"]), e_ext])
         self.assertEqual(e2t._dont_clobber(fn_ext), expt)
-        os.unlink(fn_ext) # we have to remove this ourselves
+        os.unlink(fn_ext)  # we have to remove this ourselves
         # test append mode with file that doesn't exist
         wontexist = fn + "_shouldnteverexist"
         self.assertEqual(e2t._dont_clobber(wontexist), wontexist)
@@ -186,7 +187,7 @@ class TestExifTraitcapture(unittest.TestCase):
         fn = e2t.get_new_file_name(date, 'test')
         self.assertEqual(fn, ("2013/2013_11/2013_11_12/2013_11_12_20/"
                               "test_2013_11_12_20_53_09_00.jpg"))
-        date = e2t.get_file_date(self.jpg_testfile, round_secs=5*60)
+        date = e2t.get_file_date(self.jpg_testfile, round_secs=5 * 60)
         fn = e2t.get_new_file_name(date, 'test')
         self.assertEqual(fn, ("2013/2013_11/2013_11_12/2013_11_12_20/"
                               "test_2013_11_12_20_55_00_00.jpg"))
@@ -210,9 +211,9 @@ class TestExifTraitcapture(unittest.TestCase):
 
     def test_make_timestream_name_params(self):
         name = e2t.make_timestream_name(
-                self.camera,
-                res="1080x720",
-                step="clean")
+            self.camera,
+            res="1080x720",
+            step="clean")
         exp = 'BVZ00000-EUC-R01C01-A_CANON~1080x720-clean'
         self.assertEqual(name, exp)
 
@@ -225,7 +226,7 @@ class TestExifTraitcapture(unittest.TestCase):
                         'jpg/IMG_0633.JPG']
                         },
                 "raw": {path.join(self.camupload_dir, 'raw/IMG_0001.CR2')},
-            }
+                }
         got = e2t.find_image_files(self.camera)
         self.assertSetEqual(set(got["jpg"]), expt["jpg"])
         self.assertSetEqual(set(got["jpg"]), expt["jpg"])
@@ -243,14 +244,13 @@ class TestExifTraitcapture(unittest.TestCase):
             self.assertEqual(e2t.get_local_path(unixpath), unixpath)
         else:
             raise ValueError("Non-Unix/Win path seperator '%s' not supported" %
-                    os.path.sep)
+                             os.path.sep)
 
     # tests for timestreamise_image
     def test_timestreamise_image(self):
         e2t.timestreamise_image(self.jpg_testfile, self.camera)
         self.assertTrue(path.exists(self.r_fullres_path))
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
-
 
     # tests for process_image
     def test_process_image(self):
@@ -266,27 +266,27 @@ class TestExifTraitcapture(unittest.TestCase):
     # tests for parse_camera_config_csv
     def test_parse_camera_config_csv(self):
         configs = [
-                {
-                    'archive_dest': './test/out/archive',
-                    'camera_name_f': 'A_CANON',
-                    'camera_timezone': (11,0),
-                    'current_expt': 'BVZ00000',
-                    'destination': './test/out/timestreams',
-                    'expt_end': strptime('2013_12_31', "%Y_%m_%d"),
-                    'expt_start': strptime('2013_12_01', "%Y_%m_%d"),
-                    'interval': 5,
-                    'image_types': ["jpg"],
-                    'location': 'EUC-R01C01',
-                    'method': 'move',
-                    'mode': 'batch',
-                    'resolutions': ['original', (1024,768), (640,480)],
-                    'source': './test/img/camupload',
-                    'sunrise': (5,0),
-                    'sunset': (22,0),
-                    'use': True,
-                    'user': 'Glasshouses'
-                }
-            ]
+            {
+                'archive_dest': './test/out/archive',
+                'camera_name_f': 'A_CANON',
+                'camera_timezone': (11, 0),
+                'current_expt': 'BVZ00000',
+                'destination': './test/out/timestreams',
+                'expt_end': strptime('2013_12_31', "%Y_%m_%d"),
+                'expt_start': strptime('2013_12_01', "%Y_%m_%d"),
+                'interval': 5,
+                'image_types': ["jpg"],
+                'location': 'EUC-R01C01',
+                'method': 'move',
+                'mode': 'batch',
+                'resolutions': ['original', (1024, 768), (640, 480)],
+                'source': './test/img/camupload',
+                'sunrise': (5, 0),
+                'sunset': (22, 0),
+                'use': True,
+                'user': 'Glasshouses'
+            }
+        ]
         result = e2t.parse_camera_config_csv(self.test_config_csv)
         for expt, got in zip(configs, result):
             self.assertDictEqual(got, expt)
@@ -375,7 +375,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 '-1': False,
                 '-a': None,
                 '-c': None,
-               '-l': self.out_dirname,
+                '-l': self.out_dirname,
                 '-g': conf_out,
                 '-t': None})
         self.assertTrue(path.exists(conf_out))
@@ -384,7 +384,7 @@ class TestExifTraitcapture(unittest.TestCase):
     def tearDown(self):
         #os.system("tree %s" % path.dirname(self.out_dirname))
         rmtree(self.out_dirname)
-        #pass
+        # pass
 
 
 if __name__ == "__main__":
