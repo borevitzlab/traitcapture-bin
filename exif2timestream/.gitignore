@@ -1,0 +1,29 @@
+*.swp
+test/img
+
+# python compiled files
+*.pyc
+*.pyo
+
+# testing
+.coverage
+.tox
+.noseids
+e2t*.log
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+MANIFEST*
+
+# Installer logs
+pip-log.txt
