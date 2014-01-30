@@ -286,8 +286,11 @@ class TestExifTraitcapture(unittest.TestCase):
             self.assertDictEqual(got, expt)
 
     def test_unused_bad_camera(self):
+        # first entry is invalid but not used, should return None
         got = list(e2t.parse_camera_config_csv(self.unused_bad_cam_csv))
         self.assertListEqual(got, [])
+        # The case of "invalid but used" is dealt with in
+        # test_parse_camera_config_csv_badconfig
 
     def test_parse_camera_config_csv_badconfig(self):
         with self.assertRaises(KeyError):
