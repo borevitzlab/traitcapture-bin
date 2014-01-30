@@ -12,9 +12,10 @@ from tempfile import NamedTemporaryFile
 
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
-    test_config_csv = path.join(dirname, "test_config.csv")
+    test_config_csv = path.join(dirname, "config.csv")
     bad_header_config_csv = path.join(dirname, "bad_header_config.csv")
     bad_values_config_csv = path.join(dirname, "bad_values_config.csv")
+    unused_bad_cam_csv = path.join(dirname, "unused_cams_with_bad_values.csv")
     out_dirname = path.join(dirname, "out")
     camupload_dir = path.join(dirname, "img", "camupload")
     noexif_testfile = path.join(dirname, "img", "IMG_0001_NOEXIF.JPG")
@@ -284,6 +285,10 @@ class TestExifTraitcapture(unittest.TestCase):
         for expt, got in zip(configs, result):
             self.assertDictEqual(got, expt)
 
+    def test_unused_bad_camera(self):
+        got = list(e2t.parse_camera_config_csv(self.unused_bad_cam_csv))
+        self.assertListEqual(got, [])
+
     def test_parse_camera_config_csv_badconfig(self):
         with self.assertRaises(KeyError):
             list(e2t.parse_camera_config_csv(self.bad_header_config_csv))
@@ -301,7 +306,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/test_config.csv',
+            '-c': './test/config.csv',
             '-g': None,
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
@@ -321,7 +326,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/test_config.csv',
+            '-c': './test/config.csv',
             '-g': None,
             '-t': '2'})
         self.assertTrue(path.exists(self.r_fullres_path))
@@ -340,7 +345,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/test_config.csv',
+            '-c': './test/config.csv',
             '-g': None,
             '-t': "several"})
         self.assertTrue(path.exists(self.r_fullres_path))
@@ -360,7 +365,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': True,
             '-a': None,
-            '-c': './test/test_config.csv',
+            '-c': './test/config.csv',
             '-g': None,
             '-t': None})
         self.assertTrue(path.exists(self.r_fullres_path))
