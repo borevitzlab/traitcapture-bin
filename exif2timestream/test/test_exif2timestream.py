@@ -366,6 +366,8 @@ class TestExifTraitcapture(unittest.TestCase):
             '-g': None,
             '-t': None})
         self.assertTrue(path.exists(self.r_fullres_path))
+        # IMG0001.JPG should always be the first one, with one core it's
+        # deterministic
         self._md5test(self.r_fullres_path, "76ee6fb2f5122d2f5815101ec66e7cb8")
 
     def test_main_generate(self):

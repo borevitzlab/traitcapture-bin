@@ -513,7 +513,7 @@ def main(opts):
                         threads = cpu_count() - 1
                 else:
                     threads = cpu_count() - 1
-                LOG.info("using {0:d} processes".format(threads))
+                LOG.info("Using {0:d} processes".format(threads))
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
                 pool = Pool(threads)
