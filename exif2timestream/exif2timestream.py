@@ -448,9 +448,27 @@ def generate_config_csv(filename):
 
 def main(opts):
     """The main loop of the module, do the renaming in parallel etc."""
-    if "-g" in opts and opts['-g'] is not None:
+    if opts['-g'] is not None:
+        # No logging when we're just generating a config file. What could
+        # possibly go wrong...
+        null = logging.NullHandler()
+        LOG.addHandler(null)
         generate_config_csv(opts["-g"])
         exit()
+    # we want logging for the real main loop
+    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.ERROR)
+    ch.setFormatter(fmt)
+    logdir = opts['-l']
+    if not path.exists(logdir):
+        logdir = "."
+    fh = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".log"))
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+    LOG.addHandler(fh)
+    LOG.addHandler(ch)
+    # beginneth the actual main loop
     start_time = time()
     cameras = parse_camera_config_csv(opts["-c"])
     n_images = 0
@@ -494,25 +512,6 @@ def main(opts):
 if __name__ == "__main__":
     from docopt import docopt
     opts = docopt(CLI_OPTS)
-    # we want logging, we're not testing/importing the module
-    if "-g" in opts and opts['-g'] is None:
-        FMT = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        CH = logging.StreamHandler()
-        CH.setLevel(logging.ERROR)
-        CH.setFormatter(FMT)
-        logdir = opts['-l']
-        if not path.exists(logdir):
-            logdir = "."
-        FH = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".log"))
-        FH.setLevel(logging.INFO)
-        FH.setFormatter(FMT)
-        LOG.addHandler(FH)
-        LOG.addHandler(CH)
-    else:
-        # No logging when we're just generating a config file. What could
-        # possibly go wrong...
-        null = logging.NullHandler()
-        LOG.addHandler(null)
     # lets do this shit.
     main(opts)
 else:
