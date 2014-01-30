@@ -264,14 +264,14 @@ def make_timestream_name(camera, res="fullres", step="orig"):
             )
 
 
-def timestreamise_image(image, camera, subsec=0):
+def timestreamise_image(image, camera, subsec=0, step="orig"):
     """Process a single image, mv/cp-ing it to its new location"""
     # make new image path
     image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
     if not image_date:
         raise SkipImage
     in_ext = path.splitext(image)[-1].lstrip(".")
-    ts_name = make_timestream_name(camera, res="fullres")
+    ts_name = make_timestream_name(camera, res="fullres", step=step)
     out_image = get_new_file_name(
         image_date,
         ts_name,
@@ -363,10 +363,15 @@ def process_image((image, camera, ext)):
     #    subsec += 1
     #else:
     #    # we've moved to the next time, so 0-based subsec counter == 0
+    if ext.lower() == "raw" or ext.lower() in RAW_FORMATS:
+        print "processing a raw file"
+        step = "raw"
+    else:
+        step = "orig"
     subsec = 0
     try:
         # deal with original image (move/copy etc)
-        timestreamise_image(image, camera, subsec=subsec)
+        timestreamise_image(image, camera, subsec=subsec, step=step)
     except SkipImage:
        return
     if camera[FIELDS["method"]] in {"move", "archive"}:
@@ -425,7 +430,7 @@ def find_image_files(camera):
                 raise ValueError("too many subdirs")
             for fle in files:
                 this_ext = path.splitext(fle)[-1].lower().strip(".")
-                if this_ext == ext:
+                if this_ext == ext or ext == "raw" and this_ext in RAW_FORMATS:
                     fle_path = path.join(cur_dir, fle)
                     try:
                         ext_files[ext].append(fle_path)

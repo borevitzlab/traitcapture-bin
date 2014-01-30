@@ -32,7 +32,7 @@ class TestExifTraitcapture(unittest.TestCase):
             'image_types': 'raw~jpg',
             'interval': '5',
             'mode': 'batch',
-            'camera_name_f': 'IP01-RGB',
+            'camera_name_f': 'A_CANON',
             'resolutions': 'original~1024x768~640x480',
             'source': '\\'.join([dirname, "img", "camupload"]),
             'sunrise': '500',
@@ -52,7 +52,7 @@ class TestExifTraitcapture(unittest.TestCase):
             'interval': '5',
             'image_types': 'raw~jpg',
             'mode': 'batch',
-            'camera_name_f': 'IP01-RGB',
+            'camera_name_f': 'A_CANON',
             'resolutions': 'original~1024x768~640x480',
             'source': '/'.join([dirname, "img", "camupload"]),
             'sunrise': '500',
@@ -64,9 +64,15 @@ class TestExifTraitcapture(unittest.TestCase):
 
     r_fullres_path =  path.join(
         out_dirname, "timestreams", "BVZ00000",
-        'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig', '2013', '2013_11',
+        'BVZ00000-EUC-R01C01-A_CANON~fullres-orig', '2013', '2013_11',
         '2013_11_12', '2013_11_12_20',
-        'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig_2013_11_12_20_55_00_00.JPG'
+        'BVZ00000-EUC-R01C01-A_CANON~fullres-orig_2013_11_12_20_55_00_00.JPG'
+        )
+    r_raw_path =  path.join(
+        out_dirname, "timestreams", "BVZ00000",
+        'BVZ00000-EUC-R01C01-A_CANON~fullres-raw', '2013', '2013_11',
+        '2013_11_12', '2013_11_12_20',
+        'BVZ00000-EUC-R01C01-A_CANON~fullres-raw_2013_11_12_20_55_00_00.CR2'
         )
 
     maxDiff = None
@@ -199,7 +205,7 @@ class TestExifTraitcapture(unittest.TestCase):
     # tests for make_timestream_name
     def test_make_timestream_name_empty(self):
         name = e2t.make_timestream_name(self.camera)
-        exp = 'BVZ00000-EUC-R01C01-IP01-RGB~fullres-orig'
+        exp = 'BVZ00000-EUC-R01C01-A_CANON~fullres-orig'
         self.assertEqual(name, exp)
 
     def test_make_timestream_name_params(self):
@@ -207,7 +213,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 self.camera,
                 res="1080x720",
                 step="clean")
-        exp = 'BVZ00000-EUC-R01C01-IP01-RGB~1080x720-clean'
+        exp = 'BVZ00000-EUC-R01C01-A_CANON~1080x720-clean'
         self.assertEqual(name, exp)
 
     # tests for find_image_files
@@ -262,7 +268,7 @@ class TestExifTraitcapture(unittest.TestCase):
         configs = [
                 {
                     'archive_dest': './test/out/archive',
-                    'camera_name_f': 'IP01-RGB',
+                    'camera_name_f': 'A_CANON',
                     'camera_timezone': (11,0),
                     'current_expt': 'BVZ00000',
                     'destination': './test/out/timestreams',
@@ -305,6 +311,18 @@ class TestExifTraitcapture(unittest.TestCase):
         self._md5test(out_csv, "de1cd9eb7d630c38bf1ece0237004b1b")
 
     # tests for main function
+    def test_main_raw(self):
+        e2t.main({
+            '-1': False,
+            '-a': None,
+            '-c': './test/config_raw.csv',
+            '-l': '.',
+            '-g': None,
+            '-t': None})
+        #os.system("tree %s" % path.dirname(self.out_dirname))
+        self.assertTrue(path.exists(self.r_fullres_path))
+        self.assertTrue(path.exists(self.r_raw_path))
+
     def test_main(self):
         e2t.main({
             '-1': False,
