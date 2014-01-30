@@ -33,7 +33,7 @@ OPTIONS:
     -l LOGDIR           Directory to contain log files. [Default:  .]
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
     -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
-                        path. [Default: config.csv]
+                        path.
 """
 
 
