@@ -333,15 +333,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
         self.assertTrue(path.exists(self.r_fullres_path))
-        with open(self.r_fullres_path, "rb") as fh:
-            out_contents = fh.read()
-        md5hash = md5()
-        md5hash.update(out_contents)
-        md5hash = md5hash.hexdigest()
-        # With threads, it's not determinisitc as to which will finish first
-        self.assertIn(md5hash, {
-            "76ee6fb2f5122d2f5815101ec66e7cb8",  # IMG0001.JPG
-            "904f7d4eadcf7457fa5e55252b244d5b"})  # IMG0002.JPG
 
     def test_main_threads(self):
         # with a good value for threads
@@ -353,15 +344,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-g': None,
             '-t': '2'})
         self.assertTrue(path.exists(self.r_fullres_path))
-        with open(self.r_fullres_path, "rb") as fh:
-            out_contents = fh.read()
-        md5hash = md5()
-        md5hash.update(out_contents)
-        md5hash = md5hash.hexdigest()
-        # With threads, it's not determinisitc as to which will finish first
-        self.assertIn(md5hash, {
-            "76ee6fb2f5122d2f5815101ec66e7cb8",  # IMG0001.JPG
-            "904f7d4eadcf7457fa5e55252b244d5b"})  # IMG0002.JPG
 
     def test_main_threads_bad(self):
         # and with a bad one (should default back to n_cpus)
@@ -373,16 +355,6 @@ class TestExifTraitcapture(unittest.TestCase):
             '-g': None,
             '-t': "several"})
         self.assertTrue(path.exists(self.r_fullres_path))
-        with open(self.r_fullres_path, "rb") as fh:
-            out_contents = fh.read()
-        md5hash = md5()
-        md5hash.update(out_contents)
-        md5hash = md5hash.hexdigest()
-        # With threads, it's not determinisitc as to which will finish first
-        self.assertIn(md5hash, {
-            "76ee6fb2f5122d2f5815101ec66e7cb8",  # IMG0001.JPG
-            "904f7d4eadcf7457fa5e55252b244d5b"})  # IMG0002.JPG
-
 
     def test_main_threads_one(self):
         # and with -1
