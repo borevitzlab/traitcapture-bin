@@ -340,12 +340,12 @@ def _dont_clobber(fn, mode="append"):
         return fn
 
 
-def process_image(xxx_todo_changeme):
+def process_image(args):
     """
     Given a camera config and list of images, will do the required
     move/copy operations.
     """
-    (image, camera, ext) = xxx_todo_changeme
+    (image, camera, ext) = args
     stdout.write(".")
     stdout.flush()
     # archive a backup before we fuck anything up
