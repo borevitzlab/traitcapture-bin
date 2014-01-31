@@ -14,6 +14,8 @@ from tempfile import NamedTemporaryFile
 class TestExifTraitcapture(unittest.TestCase):
     dirname = path.dirname(__file__)
     test_config_csv = path.join(dirname, "config.csv")
+    test_config_dates_csv = path.join(dirname, "config_dates.csv")
+    test_config_raw_csv = path.join(dirname, "config_raw.csv")
     bad_header_config_csv = path.join(dirname, "bad_header_config.csv")
     bad_values_config_csv = path.join(dirname, "bad_values_config.csv")
     unused_bad_cam_csv = path.join(dirname, "unused_cams_with_bad_values.csv")
@@ -311,11 +313,22 @@ class TestExifTraitcapture(unittest.TestCase):
         self._md5test(out_csv, "de1cd9eb7d630c38bf1ece0237004b1b")
 
     # tests for main function
+    def test_main(self):
+        e2t.main({
+            '-1': False,
+            '-a': None,
+            '-c': self.test_config_csv,
+            '-l': self.out_dirname,
+            '-g': None,
+            '-t': None})
+        #os.system("tree %s" % path.dirname(self.out_dirname))
+        self.assertTrue(path.exists(self.r_fullres_path))
+
     def test_main_raw(self):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/config_raw.csv',
+            '-c': self.test_config_raw_csv,
             '-l': self.out_dirname,
             '-g': None,
             '-t': None})
@@ -323,23 +336,23 @@ class TestExifTraitcapture(unittest.TestCase):
         self.assertTrue(path.exists(self.r_fullres_path))
         self.assertTrue(path.exists(self.r_raw_path))
 
-    def test_main(self):
+    def test_main_expt_dates(self):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/config.csv',
+            '-c': self.test_config_dates_csv,
             '-l': self.out_dirname,
             '-g': None,
             '-t': None})
         #os.system("tree %s" % path.dirname(self.out_dirname))
-        self.assertTrue(path.exists(self.r_fullres_path))
+        self.assertFalse(path.exists(self.r_fullres_path))
 
     def test_main_threads(self):
         # with a good value for threads
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/config.csv',
+            '-c': self.test_config_csv,
             '-l': self.out_dirname,
             '-g': None,
             '-t': '2'})
@@ -350,7 +363,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': False,
             '-a': None,
-            '-c': './test/config.csv',
+            '-c': self.test_config_csv,
             '-l': self.out_dirname,
             '-g': None,
             '-t': "several"})
@@ -361,7 +374,7 @@ class TestExifTraitcapture(unittest.TestCase):
         e2t.main({
             '-1': True,
             '-a': None,
-            '-c': './test/config.csv',
+            '-c': self.test_config_csv,
             '-l': self.out_dirname,
             '-g': None,
             '-t': None})
