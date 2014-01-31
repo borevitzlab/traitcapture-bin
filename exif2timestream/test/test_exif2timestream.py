@@ -275,7 +275,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 'current_expt': 'BVZ00000',
                 'destination': './test/out/timestreams',
                 'expt_end': strptime('2013_12_31', "%Y_%m_%d"),
-                'expt_start': strptime('2013_12_01', "%Y_%m_%d"),
+                'expt_start': strptime('2012_12_01', "%Y_%m_%d"),
                 'interval': 5,
                 'image_types': ["jpg"],
                 'location': 'EUC-R01C01',

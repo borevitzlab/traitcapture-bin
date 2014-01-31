@@ -348,6 +348,12 @@ def process_image(args):
     (image, camera, ext) = args
     stdout.write(".")
     stdout.flush()
+
+    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+    if image_date < camera[FIELDS["expt_start"]] or \
+            image_date > camera[FIELDS["expt_end"]]:
+        return  # Don't raise SkipImage as it isn't caught
+
     # archive a backup before we fuck anything up
     if camera[FIELDS["method"]] == "archive":
         ts_name = make_timestream_name(camera, res="fullres")
