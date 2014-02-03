@@ -45,24 +45,24 @@ LOG = logging.getLogger("exif2timestream")
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
 # compability.
 FIELDS = {
-    'archive_dest': 'archive_dest',
-    'destination': 'destination',
-    'expt': 'current_expt',
-    'expt_end': 'expt_end',
-    'expt_start': 'expt_start',
-    'image_types': 'image_types',
-    'interval': 'interval',
-    'location': 'location',
-    'method': 'method',
-    'mode': 'mode',
-    'name': 'camera_name_f',
+    'use': 'USE',
+    'name': 'CAMERA_NAME',
+    'location': 'LOCATION',
+    'expt': 'CURRENT_EXPT',
+    'source': 'SOURCE',
+    'destination': 'DESTINATION',
+    'archive_dest': 'ARCHIVE_DEST',
+    'expt_end': 'EXPT_END',
+    'expt_start': 'EXPT_START',
+    'interval': 'INTERVAL',
+    'image_types': 'IMAGE_TYPES',
+    'method': 'METHOD',
     'resolutions': 'resolutions',
-    'source': 'source',
     'sunrise': 'sunrise',
     'sunset': 'sunset',
     'timezone': 'camera_timezone',
-    'use': 'use',
-    'user': 'user'
+    'user': 'user',
+    'mode': 'mode',
 }
 
 FIELD_ORDER = [
@@ -77,8 +77,8 @@ FIELD_ORDER = [
     'expt_start',
     'interval',
     'image_types',
-    'resolutions',
     'method',
+    'resolutions',
     'sunrise',
     'sunset',
     'timezone',
@@ -184,6 +184,7 @@ def validate_camera(camera):
                 raise ValueError
             return x
     sch = Schema({
+        Required(FIELDS["use"]): bool_str,
         Required(FIELDS["destination"]): path_exists,
         Required(FIELDS["expt"]): str,
         Required(FIELDS["expt_end"]): date,
@@ -191,17 +192,14 @@ def validate_camera(camera):
         Required(FIELDS["image_types"]): image_type_str,
         Required(FIELDS["interval"], default=1): num_str,
         Required(FIELDS["location"]): str,
-        Required(
-            FIELDS["method"], default="archive"): InList(["copy", "archive",
-                                                          "move"]),
-        Required(FIELDS["mode"], default="batch"): InList(["batch", "watch"]),
-        # watch not implemented yet though
+        Required(FIELDS["archive_dest"]): path_exists,
+        Required(FIELDS["method"], default="archive"): \
+            InList(["copy", "archive", "move"]),
         Required(FIELDS["name"]): str,
-        Required(FIELDS["resolutions"], default="fullres"): resolution_str,
         Required(FIELDS["source"]): path_exists,
-        Required(FIELDS["use"]): bool_str,
-        Required(FIELDS["user"]): str,
-        FIELDS["archive_dest"]: path_exists,
+        FIELDS["mode"]: InList(["batch", "watch"]),
+        FIELDS["resolutions"]: resolution_str,
+        FIELDS["user"]: str,
         FIELDS["sunrise"]: int_time_hr_min,
         FIELDS["sunset"]: int_time_hr_min,
         FIELDS["timezone"]: int_time_hr_min,
@@ -420,6 +418,8 @@ def get_local_path(this_path):
 
 def localise_cam_config(camera):
     """Make camera use localised settings, e.g. path separators"""
+    if camera is None:
+        return None
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
     camera[FIELDS["archive_dest"]] = get_local_path(
         camera[FIELDS["archive_dest"]])
@@ -436,8 +436,8 @@ def parse_camera_config_csv(filename):
     fh = open(filename)
     cam_config = DictReader(fh)
     for camera in cam_config:
-        camera = localise_cam_config(camera)
         camera = validate_camera(camera)
+        camera = localise_cam_config(camera)
         if camera is not None and camera[FIELDS["use"]]:
             yield camera
 
