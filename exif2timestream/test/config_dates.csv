@@ -1,3 +1,3 @@
-use,camera_name_f,location,user,mode,method,source,destination,archive_dest,interval,sunrise,sunset,current_expt,expt_start,expt_end,camera_timezone,resolutions,image_types
+USE,CAMERA_NAME,LOCATION,user,mode,METHOD,SOURCE,DESTINATION,ARCHIVE_DEST,INTERVAL,sunrise,sunset,CURRENT_EXPT,EXPT_START,EXPT_END,camera_timezone,resolutions,IMAGE_TYPES
 1,EARLY_EXPT,EUC-R01C01,Glasshouses,batch,move,./test/img/camupload,./test/out/timestreams,./test/out/archive,5,500,2200,BVZ00000,2011_12_01,2011_12_31,1100,original~1024x768~640x480,jpg
 1,LATER_EXPT,EUC-R01C01,Glasshouses,batch,copy,./test/img/camupload,./test/out/timestreams,./test/out/archive,5,500,2200,BVZ00000,2014_12_01,2014_12_31,1100,original~1024x768~640x480,jpg

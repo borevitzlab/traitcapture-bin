@@ -25,43 +25,43 @@ class TestExifTraitcapture(unittest.TestCase):
     jpg_testfile = path.join(camupload_dir, "jpg", "IMG_0001.JPG")
     raw_testfile = path.join(camupload_dir, "raw", "IMG_0001.CR2")
     camera_win32 = {
-        'archive_dest': '/'.join([out_dirname, 'archive']),
-        'current_expt': 'BVZ00000',
-        'destination': '\\'.join([out_dirname, 'timestreams']),
-        'expt_end': '2013_12_31',
-        'expt_start': '2013_11_01',
-        'location': 'EUC-R01C01',
-        'method': 'copy',
-        'image_types': 'raw~jpg',
-        'interval': '5',
+        'ARCHIVE_DEST': '\\'.join([out_dirname, 'archive']),
+        'CURRENT_EXPT': 'BVZ00000',
+        'DESTINATION': '\\'.join([out_dirname, 'timestreams']),
+        'EXPT_END': '2013_12_31',
+        'EXPT_START': '2013_11_01',
+        'LOCATION': 'EUC-R01C01',
+        'METHOD': 'copy',
+        'IMAGE_TYPES': 'raw~jpg',
+        'INTERVAL': '5',
         'mode': 'batch',
-        'camera_name_f': 'A_CANON',
+        'CAMERA_NAME': 'A_CANON',
         'resolutions': 'original~1024x768~640x480',
-        'source': '\\'.join([dirname, "img", "camupload"]),
+        'SOURCE': '\\'.join([dirname, "img", "camupload"]),
         'sunrise': '500',
         'sunset': '2200',
         'camera_timezone': '1100',
-        'use': '1',
+        'USE': '1',
         'user': 'Glasshouses'
     }
     camera_unix = {
-        'archive_dest': '/'.join([out_dirname, 'archive']),
-        'current_expt': 'BVZ00000',
-        'destination': '/'.join([out_dirname, 'timestreams']),
-        'expt_end': '2013_12_31',
-        'expt_start': '2013_11_01',
-        'location': 'EUC-R01C01',
-        'method': 'copy',
-        'interval': '5',
-        'image_types': 'raw~jpg',
+        'ARCHIVE_DEST': '/'.join([out_dirname, 'archive']),
+        'CURRENT_EXPT': 'BVZ00000',
+        'DESTINATION': '/'.join([out_dirname, 'timestreams']),
+        'EXPT_END': '2013_12_31',
+        'EXPT_START': '2013_11_01',
+        'LOCATION': 'EUC-R01C01',
+        'METHOD': 'copy',
+        'INTERVAL': '5',
+        'IMAGE_TYPES': 'raw~jpg',
         'mode': 'batch',
-        'camera_name_f': 'A_CANON',
+        'CAMERA_NAME': 'A_CANON',
         'resolutions': 'original~1024x768~640x480',
-        'source': '/'.join([dirname, "img", "camupload"]),
+        'SOURCE': '/'.join([dirname, "img", "camupload"]),
         'sunrise': '500',
         'sunset': '2200',
         'camera_timezone': '1100',
-        'use': '1',
+        'USE': '1',
         'user': 'Glasshouses'
     }
 
@@ -269,23 +269,23 @@ class TestExifTraitcapture(unittest.TestCase):
     def test_parse_camera_config_csv(self):
         configs = [
             {
-                'archive_dest': './test/out/archive',
-                'camera_name_f': 'A_CANON',
+                'ARCHIVE_DEST': './test/out/archive',
+                'CAMERA_NAME': 'A_CANON',
                 'camera_timezone': (11, 0),
-                'current_expt': 'BVZ00000',
-                'destination': './test/out/timestreams',
-                'expt_end': strptime('2013_12_31', "%Y_%m_%d"),
-                'expt_start': strptime('2012_12_01', "%Y_%m_%d"),
-                'interval': 5,
-                'image_types': ["jpg"],
-                'location': 'EUC-R01C01',
-                'method': 'move',
+                'CURRENT_EXPT': 'BVZ00000',
+                'DESTINATION': './test/out/timestreams',
+                'EXPT_END': strptime('2013_12_31', "%Y_%m_%d"),
+                'EXPT_START': strptime('2012_12_01', "%Y_%m_%d"),
+                'INTERVAL': 5,
+                'IMAGE_TYPES': ["jpg"],
+                'LOCATION': 'EUC-R01C01',
+                'METHOD': 'move',
                 'mode': 'batch',
                 'resolutions': ['original', (1024, 768), (640, 480)],
-                'source': './test/img/camupload',
+                'SOURCE': './test/img/camupload',
                 'sunrise': (5, 0),
                 'sunset': (22, 0),
-                'use': True,
+                'USE': True,
                 'user': 'Glasshouses'
             }
         ]
@@ -310,7 +310,7 @@ class TestExifTraitcapture(unittest.TestCase):
     def test_generate_config_csv(self):
         out_csv = path.join(self.out_dirname, "test_gencnf.csv")
         e2t.generate_config_csv(out_csv)
-        self._md5test(out_csv, "d45011d219ac754fd42aea21a5c0a94c")
+        self._md5test(out_csv, "af72b02c758ad6a32fa52ea5963fbfcd")
 
     # tests for main function
     def test_main(self):
@@ -394,7 +394,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 '-g': conf_out,
                 '-t': None})
         self.assertTrue(path.exists(conf_out))
-        self._md5test(conf_out, "d45011d219ac754fd42aea21a5c0a94c")
+        self._md5test(conf_out, "af72b02c758ad6a32fa52ea5963fbfcd")
 
     def tearDown(self):
         #os.system("tree %s" % path.dirname(self.out_dirname))
