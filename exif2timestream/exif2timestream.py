@@ -65,6 +65,26 @@ FIELDS = {
     'user': 'user'
 }
 
+FIELD_ORDER = [
+    'use',
+    'name',
+    'location',
+    'expt',
+    'source',
+    'destination',
+    'archive_dest',
+    'expt_end',
+    'expt_start',
+    'interval',
+    'image_types',
+    'resolutions',
+    'method',
+    'sunrise',
+    'sunset',
+    'timezone',
+    'user',
+    'mode',
+]
 
 class SkipImage(StopIteration):
 
@@ -462,7 +482,7 @@ def find_image_files(camera):
 def generate_config_csv(filename):
     """Make a config csv template"""
     with open(filename, "w") as fh:
-        fh.write(",".join([x for x in sorted(FIELDS.values())]))
+        fh.write(",".join([FIELDS[x] for x in FIELD_ORDER]))
         fh.write("\n")
 
 
