@@ -310,7 +310,7 @@ class TestExifTraitcapture(unittest.TestCase):
     def test_generate_config_csv(self):
         out_csv = path.join(self.out_dirname, "test_gencnf.csv")
         e2t.generate_config_csv(out_csv)
-        self._md5test(out_csv, "af72b02c758ad6a32fa52ea5963fbfcd")
+        self._md5test(out_csv, "fd7fcdee69d17cdaf9872e1ee4843bfa")
 
     # tests for main function
     def test_main(self):
@@ -394,7 +394,7 @@ class TestExifTraitcapture(unittest.TestCase):
                 '-g': conf_out,
                 '-t': None})
         self.assertTrue(path.exists(conf_out))
-        self._md5test(conf_out, "af72b02c758ad6a32fa52ea5963fbfcd")
+        self._md5test(conf_out, "fd7fcdee69d17cdaf9872e1ee4843bfa")
 
     def tearDown(self):
         #os.system("tree %s" % path.dirname(self.out_dirname))
