@@ -311,10 +311,10 @@ def timestreamise_image(image, camera, subsec=0, step="orig"):
     out_dir = path.dirname(out_image)
     if not path.exists(out_dir):
         # makedirs is like `mkdir -p`, creates parents, but raises
-        # os.error if target already exits
+        # OSError if target already exits
         try:
             os.makedirs(out_dir)
-        except (os.error, WindowsError):
+        except OSError:
             LOG.warn("Could not make dir '{0:s}', skipping image '{1:s}'".format(
                 out_dir, image))
             raise SkipImage
@@ -385,7 +385,7 @@ def process_image(args):
         if not path.exists(archive_dir):
             try:
                 os.makedirs(archive_dir)
-            except (os.error, OSError, WindowsError) as exc:
+            except OSError as exc:
                 if not path.exists(archive_dir):
                     raise exc
         archive_image = _dont_clobber(archive_image)
@@ -411,7 +411,7 @@ def process_image(args):
         # images have already been archived above, so just delete originals
         try:
             os.unlink(image)
-        except os.error as e:
+        except OSError as e:
             LOG.error("Could not delete '{0}'".format(image))
 
 
