@@ -314,7 +314,7 @@ def timestreamise_image(image, camera, subsec=0, step="orig"):
         # os.error if target already exits
         try:
             os.makedirs(out_dir)
-        except os.error:
+        except (os.error, WindowsError):
             LOG.warn("Could not make dir '{0:s}', skipping image '{1:s}'".format(
                 out_dir, image))
             raise SkipImage
@@ -383,7 +383,11 @@ def process_image(args):
         )
         archive_dir = path.dirname(archive_image)
         if not path.exists(archive_dir):
-            os.makedirs(archive_dir)
+            try:
+                os.makedirs(archive_dir)
+            except (os.error, OSError, WindowsError) as exc:
+                if not path.exists(archive_dir):
+                    raise exc
         archive_image = _dont_clobber(archive_image)
         shutil.copy2(image, archive_image)
     # TODO: BUG: this won't work if images aren't in chronological order. Which
