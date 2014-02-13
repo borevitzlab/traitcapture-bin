@@ -45,28 +45,49 @@ LOG = logging.getLogger("exif2timestream")
 # Map csv fields to camera dict fields. Should be 1 to 1, but is here for
 # compability.
 FIELDS = {
-        'archive_dest': 'archive_dest',
-        'destination': 'destination',
-        'expt': 'current_expt',
-        'expt_end': 'expt_end',
-        'expt_start': 'expt_start',
-        'image_types': 'image_types',
-        'interval': 'interval',
-        'location': 'location',
-        'method': 'method',
-        'mode': 'mode',
-        'name': 'camera_name_f',
-        'resolutions': 'resolutions',
-        'source': 'source',
-        'sunrise': 'sunrise',
-        'sunset': 'sunset',
-        'timezone': 'camera_timezone',
-        'use': 'use',
-        'user': 'user'
-        }
+    'use': 'USE',
+    'name': 'CAMERA_NAME',
+    'location': 'LOCATION',
+    'expt': 'CURRENT_EXPT',
+    'source': 'SOURCE',
+    'destination': 'DESTINATION',
+    'archive_dest': 'ARCHIVE_DEST',
+    'expt_end': 'EXPT_END',
+    'expt_start': 'EXPT_START',
+    'interval': 'INTERVAL',
+    'image_types': 'IMAGE_TYPES',
+    'method': 'METHOD',
+    'resolutions': 'resolutions',
+    'sunrise': 'sunrise',
+    'sunset': 'sunset',
+    'timezone': 'camera_timezone',
+    'user': 'user',
+    'mode': 'mode',
+}
 
+FIELD_ORDER = [
+    'use',
+    'name',
+    'location',
+    'expt',
+    'source',
+    'destination',
+    'archive_dest',
+    'expt_start',
+    'expt_end',
+    'interval',
+    'image_types',
+    'method',
+    'resolutions',
+    'sunrise',
+    'sunset',
+    'timezone',
+    'user',
+    'mode',
+]
 
 class SkipImage(StopIteration):
+
     """
     Exception that specifically means skip this image.
 
@@ -85,7 +106,7 @@ def validate_camera(camera):
             return x
         else:
             try:
-               return strptime(x, "%Y_%m_%d")
+                return strptime(x, "%Y_%m_%d")
             except:
                 raise ValueError
 
@@ -109,7 +130,8 @@ def validate_camera(camera):
         if isinstance(x, tuple):
             return x
         else:
-            return (int(x)//100, int(x) % 100 )
+            return (int(x) // 100, int(x) % 100)
+
     def path_exists(x):
         if path.exists(x):
             return x
@@ -132,7 +154,7 @@ def validate_camera(camera):
                 # it's an XxY thing, hopefully
                 x, y = xy
                 x, y = int(x), int(y)
-                res_list.append((x,y))
+                res_list.append((x, y))
             else:
                 # we'll pretend it's an int, for X resolution, and any ValueError
                 # triggered here will be propagated to the vaildator
@@ -151,15 +173,18 @@ def validate_camera(camera):
         return types
 
     class InList(object):
+
         def __init__(self, valid_values):
             if isinstance(valid_values, list) or \
                     isinstance(valid_values, tuple):
                 self.valid_values = set(valid_values)
+
         def __call__(self, x):
             if not x in self.valid_values:
                 raise ValueError
             return x
     sch = Schema({
+        Required(FIELDS["use"]): bool_str,
         Required(FIELDS["destination"]): path_exists,
         Required(FIELDS["expt"]): str,
         Required(FIELDS["expt_end"]): date,
@@ -167,20 +192,18 @@ def validate_camera(camera):
         Required(FIELDS["image_types"]): image_type_str,
         Required(FIELDS["interval"], default=1): num_str,
         Required(FIELDS["location"]): str,
-        Required(FIELDS["method"], default="archive"): InList(["copy", "archive",
-            "move"]),
-        Required(FIELDS["mode"], default="batch"): InList(["batch", "watch"]),
-        # watch not implemented yet though
+        Required(FIELDS["archive_dest"]): path_exists,
+        Required(FIELDS["method"], default="archive"): \
+            InList(["copy", "archive", "move"]),
         Required(FIELDS["name"]): str,
-        Required(FIELDS["resolutions"], default="fullres"): resolution_str,
         Required(FIELDS["source"]): path_exists,
-        Required(FIELDS["use"]): bool_str,
-        Required(FIELDS["user"]): str,
-        FIELDS["archive_dest"]: path_exists,
+        FIELDS["mode"]: InList(["batch", "watch"]),
+        FIELDS["resolutions"]: resolution_str,
+        FIELDS["user"]: str,
         FIELDS["sunrise"]: int_time_hr_min,
         FIELDS["sunset"]: int_time_hr_min,
         FIELDS["timezone"]: int_time_hr_min,
-        })
+    })
     try:
         cam = sch(camera)
         LOG.debug("Validated camera '{0:s}'".format(cam))
@@ -214,12 +237,12 @@ def get_new_file_name(date_tuple, ts_name, n=0, fmt=TS_FMT, ext="jpg"):
     datestamp, timestream name, sub-second series count and extension.
     """
     if date_tuple is None or not date_tuple:
-        LOG.error("Must supply get_new_file_name with a valid date." + \
-                "Date is '{0:s}'".format(date_tuple))
+        LOG.error("Must supply get_new_file_name with a valid date." +
+                  "Date is '{0:s}'".format(date_tuple))
         raise ValueError("Must supply get_new_file_name with a valid date.")
     if not ts_name:
-        LOG.error("Must supply get_new_file_name with timestream name." + \
-                "TimeStream name is '{0:s}'".format(ts_name))
+        LOG.error("Must supply get_new_file_name with timestream name." +
+                  "TimeStream name is '{0:s}'".format(ts_name))
         raise ValueError("Must supply get_new_file_name with timestream name.")
     date_formatted_name = strftime(fmt, date_tuple)
     name = date_formatted_name.format(tsname=ts_name, n=n, ext=ext)
@@ -234,7 +257,7 @@ def round_struct_time(in_time, round_secs, tz_hrs=0, uselocal=True):
     seconds = mktime(in_time)
     rounded = int(round(seconds / float(round_secs)) * round_secs)
     if not uselocal:
-        rounded -= tz_hrs * 60 * 60 # remove tz seconds, back to UTC
+        rounded -= tz_hrs * 60 * 60  # remove tz seconds, back to UTC
     retval = localtime(rounded)
     # This is hacky as fuck. We need to replace stuff from time module with
     # stuff from datetime, which actually fucking works.
@@ -243,7 +266,7 @@ def round_struct_time(in_time, round_secs, tz_hrs=0, uselocal=True):
     rv_list[6] = in_time.tm_wday
     retval = struct_time(tuple(rv_list))
     LOG.debug("time {0:s} rounded to {1:d} seconds is {2:s}".format(
-            in_time, round_secs, retval))
+        in_time, round_secs, retval))
     return retval
 
 
@@ -256,12 +279,12 @@ def make_timestream_name(camera, res="fullres", step="orig"):
         res = "x".join([str(x) for x in res])
     # raise ValueError(str((camera, res, step)))
     return TS_NAME_FMT.format(
-            expt=camera[FIELDS["expt"]],
-            loc=camera[FIELDS["location"]],
-            cam=camera[FIELDS["name"]],
-            res=res,
-            step=step
-            )
+        expt=camera[FIELDS["expt"]],
+        loc=camera[FIELDS["location"]],
+        cam=camera[FIELDS["name"]],
+        res=res,
+        step=step
+    )
 
 
 def timestreamise_image(image, camera, subsec=0, step="orig"):
@@ -277,23 +300,23 @@ def timestreamise_image(image, camera, subsec=0, step="orig"):
         ts_name,
         n=subsec,
         ext=in_ext
-        )
+    )
     out_image = path.join(
         camera[FIELDS["destination"]],
         camera[FIELDS["expt"]],
         ts_name,
         out_image
-        )
+    )
     # make the target directory
     out_dir = path.dirname(out_image)
     if not path.exists(out_dir):
         # makedirs is like `mkdir -p`, creates parents, but raises
-        # os.error if target already exits
+        # OSError if target already exits
         try:
             os.makedirs(out_dir)
-        except os.error:
+        except OSError:
             LOG.warn("Could not make dir '{0:s}', skipping image '{1:s}'".format(
-                    out_dir, image))
+                out_dir, image))
             raise SkipImage
     # And do the copy
     dest = _dont_clobber(out_image, mode=SkipImage)
@@ -302,7 +325,7 @@ def timestreamise_image(image, camera, subsec=0, step="orig"):
         LOG.info("Copied '{0:s}' to '{1:s}".format(image, dest))
     except Exception as e:
         LOG.warn("Could copy '{0:s}' to '{1:s}', skipping image".format(
-                image, dest))
+            image, dest))
         raise SkipImage
 
 
@@ -335,34 +358,45 @@ def _dont_clobber(fn, mode="append"):
         return fn
 
 
-def process_image((image, camera, ext)):
+def process_image(args):
     """
     Given a camera config and list of images, will do the required
     move/copy operations.
     """
+    (image, camera, ext) = args
     stdout.write(".")
     stdout.flush()
+
+    image_date = get_file_date(image, camera[FIELDS["interval"]] * 60)
+    if image_date < camera[FIELDS["expt_start"]] or \
+            image_date > camera[FIELDS["expt_end"]]:
+        return  # Don't raise SkipImage as it isn't caught
+
     # archive a backup before we fuck anything up
     if camera[FIELDS["method"]] == "archive":
         ts_name = make_timestream_name(camera, res="fullres")
         archive_image = path.join(
-                camera[FIELDS["archive_dest"]],
-                camera[FIELDS["expt"]],
-                ts_name,
-                path.basename(image)
-                )
+            camera[FIELDS["archive_dest"]],
+            camera[FIELDS["expt"]],
+            ts_name,
+            path.basename(image)
+        )
         archive_dir = path.dirname(archive_image)
         if not path.exists(archive_dir):
-            os.makedirs(archive_dir)
+            try:
+                os.makedirs(archive_dir)
+            except OSError as exc:
+                if not path.exists(archive_dir):
+                    raise exc
         archive_image = _dont_clobber(archive_image)
         shutil.copy2(image, archive_image)
-    #TODO: BUG: this won't work if images aren't in chronological order. Which
+    # TODO: BUG: this won't work if images aren't in chronological order. Which
     # they never will be.
-    #if last_date == image_date:
-    #    # increment the sub-second counter
+    # if last_date == image_date:
+    # increment the sub-second counter
     #    subsec += 1
-    #else:
-    #    # we've moved to the next time, so 0-based subsec counter == 0
+    # else:
+    # we've moved to the next time, so 0-based subsec counter == 0
     if ext.lower() == "raw" or ext.lower() in RAW_FORMATS:
         step = "raw"
     else:
@@ -372,15 +406,13 @@ def process_image((image, camera, ext)):
         # deal with original image (move/copy etc)
         timestreamise_image(image, camera, subsec=subsec, step=step)
     except SkipImage:
-       return
+        return
     if camera[FIELDS["method"]] in {"move", "archive"}:
         # images have already been archived above, so just delete originals
         try:
             os.unlink(image)
-        except os.error as e:
+        except OSError as e:
             LOG.error("Could not delete '{0}'".format(image))
-
-
 
 
 def get_local_path(this_path):
@@ -390,9 +422,13 @@ def get_local_path(this_path):
 
 def localise_cam_config(camera):
     """Make camera use localised settings, e.g. path separators"""
+    if camera is None:
+        return None
     camera[FIELDS["source"]] = get_local_path(camera[FIELDS["source"]])
-    camera[FIELDS["archive_dest"]] =  get_local_path(camera[FIELDS["archive_dest"]])
-    camera[FIELDS["destination"]] = get_local_path(camera[FIELDS["destination"]])
+    camera[FIELDS["archive_dest"]] = get_local_path(
+        camera[FIELDS["archive_dest"]])
+    camera[FIELDS["destination"]] = get_local_path(
+        camera[FIELDS["destination"]])
     return camera
 
 
@@ -404,10 +440,11 @@ def parse_camera_config_csv(filename):
     fh = open(filename)
     cam_config = DictReader(fh)
     for camera in cam_config:
-        camera = localise_cam_config(camera)
         camera = validate_camera(camera)
+        camera = localise_cam_config(camera)
         if camera is not None and camera[FIELDS["use"]]:
             yield camera
+
 
 def find_image_files(camera):
     """
@@ -428,7 +465,7 @@ def find_image_files(camera):
                 for d in dirs:
                     if not d.startswith("_"):
                         LOG.error("Souce directory has too many subdirs.A")
-                        #TODO: Is raising here a good idea?
+                        # TODO: Is raising here a good idea?
                         #raise ValueError("too many subdirs")
             for fle in files:
                 this_ext = path.splitext(fle)[-1].lower().strip(".")
@@ -449,7 +486,7 @@ def find_image_files(camera):
 def generate_config_csv(filename):
     """Make a config csv template"""
     with open(filename, "w") as fh:
-        fh.write(",".join([x for x in sorted(FIELDS.values())]))
+        fh.write(",".join([FIELDS[x] for x in FIELD_ORDER]))
         fh.write("\n")
 
 
@@ -463,7 +500,8 @@ def main(opts):
         generate_config_csv(opts["-g"])
         exit()
     # we want logging for the real main loop
-    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fmt = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
     ch.setFormatter(fmt)
@@ -487,11 +525,11 @@ def main(opts):
             n_cam_images = len(images)
             print "{0} {1} images from this camera".format(n_cam_images, ext)
             LOG.info("Have {0} {1} images from this camera".format(
-                    n_cam_images, ext))
+                n_cam_images, ext))
             n_images += n_cam_images
             last_date = None
             subsec = 0
-            #TODO: sort out the whole subsecond clusterfuck
+            # TODO: sort out the whole subsecond clusterfuck
             if "-1" in opts and opts["-1"]:
                 LOG.info("using 1 process (What is this? Fucking 1990?)")
                 for image in images:
@@ -505,7 +543,7 @@ def main(opts):
                         threads = cpu_count() - 1
                 else:
                     threads = cpu_count() - 1
-                LOG.info("using {0:d} processes".format(threads))
+                LOG.info("Using {0:d} processes".format(threads))
                 # set the function's camera-wide arguments
                 args = zip(images, cycle([camera]), cycle([ext]))
                 pool = Pool(threads)
@@ -514,7 +552,7 @@ def main(opts):
                 pool.join()
     secs_taken = time() - start_time
     print "\nProcessed a total of {0} images in {1:.2f} seconds".format(
-            n_images, secs_taken)
+        n_images, secs_taken)
 
 
 if __name__ == "__main__":
