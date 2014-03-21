@@ -406,7 +406,11 @@ def process_image(args):
         # deal with original image (move/copy etc)
         timestreamise_image(image, camera, subsec=subsec, step=step)
     except SkipImage:
-        pass # we have changed this so that all images are moved to the archive
+        if camera[FIELDS["method"]] == "archive":
+            # we have changed this so that all images are moved to the archive
+            pass
+        else:
+            return # don't delete skipped images if we haven't archived them
     if camera[FIELDS["method"]] in {"move", "archive"}:
         # images have already been archived above, so just delete originals
         try:
