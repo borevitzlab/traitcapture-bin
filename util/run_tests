@@ -1,0 +1,12 @@
+#!/bin/bash
+# make_chamber_grid.py tests
+md5_got="$(python make_chamber_grid.py | md5sum |awk '{print $1}')"
+md5_expt="a89da67275c5c2a5ef72a36c8822f530"
+if [ "$md5_got" != "$md5_expt" ]
+then
+	echo "make_chamber_grid.py test failed"
+	echo "'$md5_got' != '$md5_expt'" 
+	exit -1
+else
+	echo "make_chamber_grid.py test passed!"
+fi
