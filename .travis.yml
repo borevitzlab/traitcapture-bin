@@ -17,6 +17,3 @@ script:
  - ./install
  - ./run_tests
  - cd ..
- - cd hafresize
- - bash ./test.sh
- - cd ..
