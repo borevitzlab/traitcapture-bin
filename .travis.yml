@@ -20,3 +20,6 @@ script:
  - cd hafresize
  - bash ./test.sh
  - cd ..
+ - cd util
+ - ./run_tests
+ - cd ..
