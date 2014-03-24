@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 if [ $# -ne 3 ]
 then
 	echo "HAFResize.sh -- The hacky-as-fuck timestream resizer"
