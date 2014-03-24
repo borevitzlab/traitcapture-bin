@@ -17,3 +17,6 @@ script:
  - ./install
  - ./run_tests
  - cd ..
+ - cd util
+ - ./run_tests
+ - cd ..
