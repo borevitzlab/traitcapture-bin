@@ -39,5 +39,4 @@ echo "resizing $ts to $newres"
 find $ts -type d -print | sed -e "s/fullres/$newres/g" | parallel mkdir -p {}
 
 find $ts -name \*.jpg -or -name \*.JPG | \
-       	parallel convert -resize $newres {} \"\$\(echo \'{}\' \| sed \'s/fullres/$newres/g\' \| sed \'s/\\\\//g\'  \)\" \; echo -n \'.\'
-
+	parallel -j 95% convert -resize $newres {} \"\$\(echo \'{}\' \| sed \'s/fullres/$newres/g\' \| sed \'s/\\\\//g\'  \)\" \; echo -n \'.\'
