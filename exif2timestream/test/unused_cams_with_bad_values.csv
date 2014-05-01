@@ -1,3 +1,0 @@
-USE,CAMERA-NAME,LOCATION,user,mode,METHOD,SOURCE,DESTINATION,ARCHIVE_DEST,INTERVAL,sunrise,sunset,CURRENT_EXPT,EXPT_START,EXPT_END,camera_timezone,resolutions,IMAGE_TYPES
-0,RGB,EUC-R01C01,Glasshouses,lettuce,teleport,nonexistant_path,NOPATH,wakawakabiddleding,NaN,alsoNAN,ditto,adodgyexpt,notadate,ditto,NAN,original~10sd24x768640x480,gsd
-0,,,,,,,,,,,,,,,,,gjp~raw
