@@ -1,0 +1,3 @@
+[submodule "exif2timestream"]
+	path = exif2timestream
+	url = https://github.com/borevitzlab/exif2timestream.git
