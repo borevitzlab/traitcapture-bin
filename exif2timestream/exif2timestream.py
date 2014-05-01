@@ -24,20 +24,21 @@ IMAGE_TYPE_CONSTANTS = {"raw", "jpg"}
 RAW_FORMATS = {"cr2", "nef", "tif", "tiff"}
 CLI_OPTS = """
 USAGE:
-    exif2timestream.py [-t PROCESSES -1 -l LOGDIR] -c CAM_CONFIG_CSV
+    exif2timestream.py [-t PROCESSES -1 -d -l LOGDIR] -c CAM_CONFIG_CSV
     exif2timestream.py -g CAM_CONFIG_CSV
 
 OPTIONS:
     -1                  Use one core
+    -d                  Enable debug logging (to file).
     -t PROCESSES        Number of processes to use.
-    -l LOGDIR           Directory to contain log files. [Default:  .]
+    -l LOGDIR           Directory to contain log files. [Default: .]
     -c CAM_CONFIG_CSV   Path to CSV camera config file for normal operation.
     -g CAM_CONFIG_CSV   Generate a template camera configuration file at given
                         path.
 """
 
 
-# Sort out logging.
+# Set up logging objects
 NOW = strftime("%Y%m%dT%H%M", localtime())
 LOG = logging.getLogger("exif2timestream")
 
@@ -494,8 +495,8 @@ def generate_config_csv(filename):
         fh.write("\n")
 
 
-def main(opts):
-    """The main loop of the module, do the renaming in parallel etc."""
+def setup_logs(opts):
+    """Sets up logging using the LOG logger object."""
     if opts['-g'] is not None:
         # No logging when we're just generating a config file. What could
         # possibly go wrong...
@@ -505,24 +506,35 @@ def main(opts):
         exit()
     # we want logging for the real main loop
     fmt = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
     ch.setFormatter(fmt)
     logdir = opts['-l']
     if not path.exists(logdir):
         logdir = "."
-    fh = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".log"))
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(fmt)
-    LOG.addHandler(fh)
+    log_fh = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".log"))
+    log_fh.setLevel(logging.INFO)
+    log_fh.setFormatter(fmt)
+    LOG.addHandler(log_fh)
+    if opts['-d']:
+        debug_fh = logging.FileHandler(path.join(logdir, "e2t_" + NOW + ".debug"))
+        debug_fh.setLevel(logging.DEBUG)
+        debug_fh.setFormatter(fmt)
+        LOG.addHandler(debug_fh)
     LOG.addHandler(ch)
+    LOG.setLevel(logging.DEBUG)
+
+
+def main(opts):
+    """The main loop of the module, do the renaming in parallel etc."""
+    setup_logs(opts)
     # beginneth the actual main loop
     start_time = time()
     cameras = parse_camera_config_csv(opts["-c"])
     n_images = 0
     for camera in cameras:
-        print "Processing camera {0}".format(camera[FIELDS["name"]])
+        print "\nProcessing camera {0}".format(camera[FIELDS["name"]])
         LOG.info("Processing camera {0}".format(camera[FIELDS["name"]]))
         for ext, images in find_image_files(camera).iteritems():
             images = sorted(images)
