@@ -64,6 +64,5 @@ def print_list(cells, outfn, sep):
 
 if __name__ == "__main__":
     opts = docopt(CLI_OPTS)
-    print opts
     grid = parse_grid(opts['-i'])
     print_list(grid, opts['-o'], opts['-s'])
