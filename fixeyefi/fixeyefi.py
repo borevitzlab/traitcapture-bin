@@ -4,6 +4,7 @@ import csv
 import glob
 from os import path, makedirs
 from shutil import copyfile, move
+import sys
 
 FILETYPES = {
         b'\xFF\xD8\xFF': "JPG",
@@ -76,6 +77,7 @@ def main(opts):
                 copyfile(img, dest)
             if count % 10 == 0:
                 print("Processed {: 5} images".format(count), end='\r')
+                sys.stdout.flush()
             count += 1
 
 if __name__  == '__main__':
