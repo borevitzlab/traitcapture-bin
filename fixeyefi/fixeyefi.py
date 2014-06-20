@@ -68,11 +68,15 @@ def main(opts):
         skip = 0
         print("Processing {}".format(cam["MAC"]))
         for name, img in find_imgs(cam):
+            count += 1
+            if count % 10 == 0:
+                print("Copied {: 5} images, skipped {: 5}".format(copy, skip),
+                      end='\r')
+                sys.stdout.flush()
             fmt = get_img_format(img)
             if not fmt:
                 print("Skipping {}, not a JPG or TIFF".format(img))
                 skip += 1
-                count += 1
                 continue
             dest = path.join(cam['Destination'], FOLDER_NAMES[fmt],
                 "{}.{}".format(name, fmt))
@@ -87,12 +91,7 @@ def main(opts):
             else:
                 copyfile(img, dest)
             copy += 1
-            if count % 10 == 0:
-                print("Copied {: 5} images, skipped {: 5}".format(copy, skip),
-                      end='\r')
-                sys.stdout.flush()
-            count += 1
-        print("Processed {: 5} images. Done!                   ".format(count))
+        print("Copied {: 5} images, skipped {: 5}. Done!".format(copy, skip))
 
 if __name__  == '__main__':
     opts = docopt.docopt(CLI_DOC)
