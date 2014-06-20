@@ -64,15 +64,25 @@ def main(opts):
     cams = parse_config(opts)
     for cam in cams:
         count = 0
+        copy = 0
+        skip = 0
         print("Processing {}".format(cam["MAC"]))
         for name, img in find_imgs(cam):
+            count += 1
+            if count % 10 == 0:
+                print("Copied {: 5} images, skipped {: 5}".format(copy, skip),
+                      end='\r')
+                sys.stdout.flush()
             fmt = get_img_format(img)
             if not fmt:
                 print("Skipping {}, not a JPG or TIFF".format(img))
-                count += 1
+                skip += 1
                 continue
             dest = path.join(cam['Destination'], FOLDER_NAMES[fmt],
                 "{}.{}".format(name, fmt))
+            if path.exists(dest):
+                skip += 1
+                continue
             destdir = path.dirname(dest)
             if not path.exists(destdir):
                 makedirs(destdir)
@@ -80,11 +90,8 @@ def main(opts):
                 move(img, dest)
             else:
                 copyfile(img, dest)
-            if count % 10 == 0:
-                print("Processed {: 5} images".format(count), end='\r')
-                sys.stdout.flush()
-            count += 1
-        print("Processed {: 5} images. Done!".format(count))
+            copy += 1
+        print("Copied {: 5} images, skipped {: 5}. Done!".format(copy, skip))
 
 if __name__  == '__main__':
     opts = docopt.docopt(CLI_DOC)
