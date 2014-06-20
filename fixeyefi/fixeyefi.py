@@ -79,6 +79,7 @@ def main(opts):
                 print("Processed {: 5} images".format(count), end='\r')
                 sys.stdout.flush()
             count += 1
+        print("Processed {: 5} images. Done!".format(count))
 
 if __name__  == '__main__':
     opts = docopt.docopt(CLI_DOC)
