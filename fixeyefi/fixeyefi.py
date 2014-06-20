@@ -7,9 +7,14 @@ from shutil import copyfile, move
 import sys
 
 FILETYPES = {
-        b'\xFF\xD8\xFF': "JPG",
-        b'\x49\x49\x2A': "CR2",
-        }
+    b'\xFF\xD8\xFF': "JPG",
+    b'\x49\x49\x2A': "CR2",
+}
+FOLDER_NAMES = {
+    "JPG": "JPG",
+    "CR2": "RAW",
+}
+
 CLI_DOC = """
 USAGE:
     fixeyefi.py [-m] -c CONFIG -i EYEFI_BASE
@@ -66,7 +71,7 @@ def main(opts):
                 print("Skipping {}, not a JPG or TIFF".format(img))
                 count += 1
                 continue
-            dest = path.join(cam['Destination'], fmt,
+            dest = path.join(cam['Destination'], FOLDER_NAMES[fmt],
                 "{}.{}".format(name, fmt))
             destdir = path.dirname(dest)
             if not path.exists(destdir):
@@ -84,4 +89,3 @@ def main(opts):
 if __name__  == '__main__':
     opts = docopt.docopt(CLI_DOC)
     main(opts)
-            
