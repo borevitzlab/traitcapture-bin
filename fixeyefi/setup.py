@@ -18,7 +18,7 @@ test_requires = [
 setup(
     name="fixeyefi",
     py_modules=['fixeyefi', ],
-    version="0.0.0a",
+    version="0.1.0rc1",
     install_requires=install_requires,
     tests_require=test_requires,
     description=desc,
