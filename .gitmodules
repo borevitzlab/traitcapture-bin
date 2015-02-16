@@ -4,3 +4,6 @@
 [submodule "cli_tools"]
 	path = timestreamCLI
 	url = https://github.com/borevitzlab/timestreamCLI.git
+[submodule "timestreamlib"]
+	path = timestreamlib
+	url = https://github.com/borevitzlab/timestreamlib.git
